@@ -1,41 +1,59 @@
 {% macro message(variant, text) %}
-<div data-variant="{{ variant }}" class="p-4 px-16
-    data-[variant=ai]:bg-slate-100 
-    data-[variant=ai-sse]:bg-slate-100 
-    data-[variant=human]:bg-slate-200 
-    ">
-
-    <div class="max-w-[600px] m-auto prose">
-        {% if variant == "ai-sse" %}
-        <div id="message-container">
-            <!-- Messages will be appended here -->
-        </div>
-        <script>
-          (function() {
-            const eventSource = new EventSource('/chat/{{ chat_id }}/generate');
-            const messageContainer = document.getElementById('message-container');
-
-            eventSource.onmessage = function(event) {
-              if (event.data) {
-                messageContainer.innerHTML = event.data;
-              }
-            };
-
-            eventSource.addEventListener('close', function(event) {
-              eventSource.close();
-            });
-
-            eventSource.onerror = function(event) {
-              console.error('SSE error:', event);
-              eventSource.close();
-            };
-          })();
-        </script>
-        {% else %}
-        {{text | safe}}
-        {% endif %}
-
+<div class="chat {% if variant == 'human' %}chat-end{% else %}chat-start{% endif %}">
+  <div class="chat-image avatar">
+    <div class="w-10 rounded-full">
+      {% if variant == 'human' %}
+      <img alt="User Avatar" src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+      {% else %}
+      <div class="bg-neutral text-neutral-content grid place-content-center w-full h-full rounded-full">AI</div>
+      {% endif %}
     </div>
+  </div>
+  <div class="chat-header">
+    {% if variant == 'human' %}
+    You
+    {% else %}
+    Assistant
+    {% endif %}
+    <time class="text-xs opacity-50">12:45</time>
+  </div>
+  <div class="chat-bubble prose max-w-none">
+    {% if variant == "ai-sse" %}
+    <div id="message-container">
+      <!-- Messages will be appended here -->
+    </div>
+    <script>
+      (function () {
+        const eventSource = new EventSource('/chat/{{ chat_id }}/generate');
+        const messageContainer = document.getElementById('message-container');
 
+        eventSource.onmessage = function (event) {
+          if (event.data) {
+            messageContainer.innerHTML = event.data;
+            // Auto-scroll during streaming
+            const container = document.getElementById('chat-messages');
+            if (container) {
+              container.scrollTop = container.scrollHeight;
+            }
+          }
+        };
+
+        eventSource.addEventListener('close', function (event) {
+          eventSource.close();
+        });
+
+        eventSource.onerror = function (event) {
+          console.error('SSE error:', event);
+          eventSource.close();
+        };
+      })();
+    </script>
+    {% else %}
+    {{text | safe}}
+    {% endif %}
+  </div>
+  <div class="chat-footer opacity-50">
+    Delivered
+  </div>
 </div>
 {% endmacro input %}

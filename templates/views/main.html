@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html data-theme="sunset" class="h-full overflow-hidden">
 
 <head>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
@@ -8,9 +8,9 @@
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
 </head>
 
-<body>
+<body class="h-full overflow-hidden flex flex-col">
     {% include "components/header.html" %}
-    <main class="pt-[60px]">
+    <main class="flex-1 overflow-hidden pt-[60px]">
         {{ view | safe }}
     </main>
 
