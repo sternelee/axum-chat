@@ -1,0 +1,89 @@
+{
+  "providers": {
+    "openai_official": {
+      "provider_type": "openai",
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "${OPENAI_API_KEY}",
+      "models": [
+        {
+          "name": "gpt-4o",
+          "display_name": "GPT-4o",
+          "context_length": 128000,
+          "input_price": 5.0,
+          "output_price": 15.0,
+          "capabilities": ["chat", "vision", "tools", "stream"]
+        },
+        {
+          "name": "gpt-4o-mini",
+          "display_name": "GPT-4o Mini",
+          "context_length": 128000,
+          "input_price": 0.15,
+          "output_price": 0.6,
+          "capabilities": ["chat", "vision", "tools", "stream"]
+        },
+        {
+          "name": "o1-preview",
+          "display_name": "OpenAI o1 Preview",
+          "context_length": 128000,
+          "input_price": 15.0,
+          "output_price": 60.0,
+          "capabilities": ["chat", "tools"]
+        }
+      ]
+    },
+    "siliconflow": {
+      "provider_type": "openai",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "api_key": "${SILICONFLOW_API_KEY}",
+      "models": [
+        {
+          "name": "deepseek-chat",
+          "display_name": "DeepSeek Chat",
+          "context_length": 128000,
+          "input_price": 0.14,
+          "output_price": 0.28,
+          "capabilities": ["chat", "stream"]
+        },
+        {
+          "name": "Qwen/Qwen2.5-7B-Instruct",
+          "display_name": "Qwen2.5 7B",
+          "context_length": 131072,
+          "input_price": 0.0,
+          "output_price": 0.0,
+          "capabilities": ["chat", "stream"]
+        },
+        {
+          "name": "meta-llama/Llama-3.1-8B-Instruct",
+          "display_name": "Llama 3.1 8B",
+          "context_length": 128000,
+          "input_price": 0.0,
+          "output_price": 0.0,
+          "capabilities": ["chat", "stream"]
+        }
+      ]
+    },
+    "google_gemini": {
+      "provider_type": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "api_key": "${GEMINI_API_KEY}",
+      "models": [
+        {
+          "name": "gemini-1.5-pro",
+          "display_name": "Gemini 1.5 Pro",
+          "context_length": 2097152,
+          "input_price": 3.5,
+          "output_price": 10.5,
+          "capabilities": ["chat", "vision", "stream"]
+        },
+        {
+          "name": "gemini-1.5-flash",
+          "display_name": "Gemini 1.5 Flash",
+          "context_length": 1048576,
+          "input_price": 0.075,
+          "output_price": 0.3,
+          "capabilities": ["chat", "vision", "stream"]
+        }
+      ]
+    }
+  }
+}

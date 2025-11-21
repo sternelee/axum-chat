@@ -93,9 +93,23 @@ TEMPLATES_PATH=templates
 DATABASE_URL=sqlite:db/db.db
 DATABASE_PATH=db/db.db
 SILICONFLOW_API_KEY=your-key-here
+OPENAI_API_KEY=<api-key> (only necessary for tests, users will add their own keys)
 ```
 
 **Note**: `SILICONFLOW_API_KEY` is the server's default API key, but users can provide their own OpenAI-compatible API keys in settings.
+
+### Prerequisites and Setup
+
+**External Dependencies**:
+- Install [Just](https://github.com/casey/just): `cargo install just`
+- Install [TailwindCSS Standalone CLI](https://tailwindcss.com/blog/standalone-cli) - required for CSS compilation
+- SQLite development tools (for direct database access)
+
+**Quick Start**:
+1. Clone repository
+2. Create `.env` file (see Environment Configuration section)
+3. `just init` - installs cargo-watch, sqlx-cli, creates database, runs migrations
+4. `just dev` - starts development server with concurrent Tailwind watch
 
 ### Important Implementation Notes
 

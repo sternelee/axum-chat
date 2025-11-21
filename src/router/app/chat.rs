@@ -14,8 +14,8 @@ use tokio_stream::wrappers::ReceiverStream; // This brings the necessary stream 
 use std::sync::Arc;
 
 use crate::{
-    ai::stream::{generate_sse_stream, list_engines, GenerationEvent},
-    data::model::ChatMessagePair,
+    ai::stream::{generate_sse_stream, GenerationEvent},
+    data::model::{ChatMessagePair, AgentWithProvider},
     utils::markdown_to_html,
     AppState, User,
 };
@@ -322,16 +322,50 @@ pub async fn chat_generate(
     State(state): State<Arc<AppState>>,
 ) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, axum::Error>>>, ChatError> {
     let chat_message_pairs = state.chat_repo.retrieve_chat(chat_id).await.unwrap();
-    let key = current_user
-        .unwrap()
-        .openai_api_key
-        .unwrap_or(String::new());
+    let user = current_user.unwrap();
 
-    match list_engines(&key).await {
-        Ok(_res) => {}
-        Err(_) => {
-            return Err(ChatError::InvalidAPIKey);
-        }
+    // Create a default agent based on the model from the chat
+    // TODO: In the future, this should be replaced with actual agent selection
+    let model_name = &chat_message_pairs[0].model;
+
+    // Find a default provider for the model (using SiliconFlow as default for now)
+    let default_provider = state.chat_repo.get_provider_by_name("siliconflow").await.unwrap();
+
+    if default_provider.is_none() {
+        return Err(ChatError::Other);
+    }
+
+    let provider = default_provider.unwrap();
+
+    // Create a temporary agent for backward compatibility
+    let agent = AgentWithProvider {
+        id: 0, // Temporary ID
+        user_id: user.id,
+        name: "Default Agent".to_string(),
+        description: Some("Default agent for backward compatibility".to_string()),
+        provider,
+        model_name: model_name.clone(),
+        stream: true,
+        chat: true,
+        embed: false,
+        image: false,
+        tool: false,
+        tools: vec![],
+        system_prompt: Some("You are a helpful assistant.".to_string()),
+        top_p: 1.0,
+        max_context: 4096,
+        file: false,
+        file_types: vec![],
+        temperature: 0.7,
+        max_tokens: 2048,
+        presence_penalty: 0.0,
+        frequency_penalty: 0.0,
+        icon: "🤖".to_string(),
+        category: "general".to_string(),
+        public: false,
+        is_active: true,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        updated_at: chrono::Utc::now().to_rfc3339(),
     };
 
     let lat_message_id = chat_message_pairs.last().unwrap().id;
@@ -341,15 +375,8 @@ pub async fn chat_generate(
 
     // Spawn a task that generates SSE events and sends them into the channel
     tokio::spawn(async move {
-        // Call your existing function to start generating events
-        if let Err(e) = generate_sse_stream(
-            &key,
-            &chat_message_pairs[0].model.clone(),
-            chat_message_pairs,
-            sender,
-        )
-        .await
-        {
+        // Call the new agent-based function to start generating events
+        if let Err(e) = generate_sse_stream(&agent, chat_message_pairs, sender).await {
             eprintln!("Error generating SSE stream: {:?}", e);
         }
     });
