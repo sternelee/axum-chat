@@ -1,0 +1,41 @@
+{% macro message(variant, text) %}
+<div data-variant="{{ variant }}" class="p-4 px-16
+    data-[variant=ai]:bg-slate-100 
+    data-[variant=ai-sse]:bg-slate-100 
+    data-[variant=human]:bg-slate-200 
+    ">
+
+    <div class="max-w-[600px] m-auto prose">
+        {% if variant == "ai-sse" %}
+        <div id="message-container">
+            <!-- Messages will be appended here -->
+        </div>
+        <script>
+          (function() {
+            const eventSource = new EventSource('/chat/{{ chat_id }}/generate');
+            const messageContainer = document.getElementById('message-container');
+
+            eventSource.onmessage = function(event) {
+              if (event.data) {
+                messageContainer.innerHTML = event.data;
+              }
+            };
+
+            eventSource.addEventListener('close', function(event) {
+              eventSource.close();
+            });
+
+            eventSource.onerror = function(event) {
+              console.error('SSE error:', event);
+              eventSource.close();
+            };
+          })();
+        </script>
+        {% else %}
+        {{text | safe}}
+        {% endif %}
+
+    </div>
+
+</div>
+{% endmacro input %}

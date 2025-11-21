@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo tree:*)",
+      "Bash(cargo update:*)",
+      "Bash(cargo check:*)",
+      "Bash(SQLX_OFFLINE=true cargo check:*)",
+      "Bash(cargo install:*)",
+      "Bash(sqlx database create:*)",
+      "Bash(just:*)",
+      "Bash(cargo run:*)",
+      "Bash(curl:*)",
+      "WebSearch",
+      "mcp__mcphub__tavily-mcp-tavily-search",
+      "WebFetch(domain:htmx.org)",
+      "WebFetch(domain:unpkg.com)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "mcp_box"
+  ]
+}
