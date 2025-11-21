@@ -18,6 +18,7 @@ mod ai;
 mod middleware;
 use middleware::extract_user;
 mod data;
+mod utils;
 use data::repository::ChatRepository;
 
 use crate::middleware::handle_error;

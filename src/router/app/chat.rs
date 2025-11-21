@@ -16,8 +16,113 @@ use std::sync::Arc;
 use crate::{
     ai::stream::{generate_sse_stream, list_engines, GenerationEvent},
     data::model::ChatMessagePair,
+    utils::markdown_to_html,
     AppState, User,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_enhanced_markdown_features() {
+        let test_markdown = r#"| Name | Age |
+|------|-----|
+| John | 25   |
+
+~~strikethrough~~
+
+- [x] task done
+- [ ] task pending
+
+https://example.com
+
+```
+code block
+```
+
+# Heading 1
+
+> This is a quote
+
+[Link text](https://example.com)
+
+```"#;
+
+        let html = markdown_to_html(test_markdown);
+
+        // 打印实际的 HTML 输出以便调试
+        println!("Generated HTML:\n{}", html);
+
+        // 验证 DaisyUI 表格样式
+        assert!(
+            html.contains(r#"class="table table-zebra w-full""#),
+            "Should add DaisyUI table classes: {}",
+            html
+        );
+
+        // 验证 DaisyUI 删除线样式
+        assert!(
+            html.contains(r#"class="line-through text-base-content/60""#),
+            "Should add DaisyUI strikethrough classes: {}",
+            html
+        );
+
+        // 验证 DaisyUI 任务列表样式
+        assert!(
+            html.contains(r#"class="checkbox checkbox-primary""#),
+            "Should add DaisyUI checkbox classes: {}",
+            html
+        );
+
+        // 验证 DaisyUI 链接样式
+        assert!(
+            html.contains(r#"class="link link-primary hover:underline""#),
+            "Should add DaisyUI link classes: {}",
+            html
+        );
+
+        // 验证 DaisyUI 代码块样式
+        assert!(
+            html.contains(r#"class="mockup-code""#),
+            "Should add DaisyUI code block classes: {}",
+            html
+        );
+
+        // 验证 DaisyUI 标题样式
+        assert!(
+            html.contains(r#"class="text-5xl font-bold mb-4""#),
+            "Should add DaisyUI heading classes: {}",
+            html
+        );
+
+        // 验证 DaisyUI 引用样式
+        assert!(
+            html.contains(
+                r#"class="border-l-4 border-primary pl-4 italic my-4 bg-base-100 p-4 rounded""#
+            ),
+            "Should add DaisyUI blockquote classes: {}",
+            html
+        );
+
+        // 验证代码块样式正确
+        assert!(
+            html.contains("mockup-code"),
+            "Should add DaisyUI code block classes: {}",
+            html
+        );
+
+        // 检查数学公式支持（如果不支持，不应该失败测试）
+        let math_test = markdown_to_html("$E = mc^2$");
+        println!("Math test output: {}", math_test);
+
+        // 检查脚注支持
+        let footnote_test = markdown_to_html("[^1]: footnote");
+        println!("Footnote test output: {}", footnote_test);
+
+        println!("✅ Enhanced markdown features with DaisyUI styling are working!");
+    }
+}
 
 use tokio_stream::StreamExt as TokioStreamExt;
 
@@ -68,7 +173,10 @@ pub async fn chat(
         .await
         .unwrap();
 
-    let selected_model = MODELS.iter().filter(|f| f.1 == "gpt-4").collect::<Vec<_>>()[0];
+    let selected_model = MODELS
+        .iter()
+        .filter(|f| f.1 == "deepseek-ai/DeepSeek-V3.2-Exp")
+        .collect::<Vec<_>>()[0];
 
     let mut context = Context::new();
     context.insert("models", &MODELS);
@@ -150,12 +258,9 @@ pub async fn chat_by_id(
     let parsed_pairs = chat_message_pairs
         .iter()
         .map(|pair| {
-            let human_message_html =
-                comrak::markdown_to_html(&pair.human_message, &comrak::Options::default());
-            let ai_message_html = comrak::markdown_to_html(
-                &pair.clone().ai_message.unwrap_or("".to_string()),
-                &comrak::Options::default(),
-            );
+            let human_message_html = markdown_to_html(&pair.human_message);
+            let ai_message_html =
+                markdown_to_html(&pair.clone().ai_message.unwrap_or("".to_string()));
             ParsedMessagePair {
                 pair: pair.clone(),
                 human_message_html,
@@ -265,12 +370,11 @@ pub async fn chat_generate(
                         GenerationEvent::Text(text) => {
                             accumulated.push_str(&text);
                             // Return the accumulated data as part of the SSE event
-                            let html =
-                                comrak::markdown_to_html(&accumulated, &comrak::Options::default());
+                            let html = markdown_to_html(&accumulated);
 
                             Some((Ok(Event::default().data(html)), (rc, accumulated)))
                         }
-                        GenerationEvent::End(text) => {
+                        GenerationEvent::End(_text) => {
                             println!("accumulated: {:?}", accumulated);
 
                             state_clone
@@ -279,13 +383,10 @@ pub async fn chat_generate(
                                 .await
                                 .unwrap();
 
-                            let html =
-                                comrak::markdown_to_html(&accumulated, &comrak::Options::default());
+                            let html = markdown_to_html(&accumulated);
 
                             // Send final content with a close event
-                            let close_event = Event::default()
-                                .data(html)
-                                .event("close");
+                            let close_event = Event::default().data(html).event("close");
 
                             Some((Ok(close_event), (rc, String::new())))
                         } // ... handle other event types if necessary ...

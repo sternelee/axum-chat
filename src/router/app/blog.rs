@@ -9,7 +9,7 @@ use tokio::fs;
 
 use std::{path::PathBuf, sync::Arc};
 
-use crate::{AppState, User};
+use crate::{AppState, User, utils::markdown_to_html};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -90,7 +90,7 @@ pub async fn blog_by_slug(
             let context = Context::new();
             let article = state.tera.render(&template, &context).unwrap();
 
-            let article_html = comrak::markdown_to_html(&article, &comrak::Options::default());
+            let article_html = markdown_to_html(&article);
             let mut context = Context::new();
             context.insert("article", &article_html);
             let blog = state
