@@ -20,6 +20,7 @@ use middleware::extract_user;
 mod data;
 mod utils;
 use data::repository::ChatRepository;
+mod mcp;
 
 use crate::middleware::handle_error;
 
@@ -28,6 +29,7 @@ struct AppState {
     pool: Arc<Pool<Sqlite>>,
     tera: Tera,
     chat_repo: ChatRepository,
+    mcp_manager: Arc<std::sync::Mutex<Option<crate::mcp::PracticalMcpManager>>>,
 }
 
 #[tokio::main]
@@ -75,10 +77,30 @@ async fn main() {
         }
     };
 
+    // Initialize MCP Manager
+    let mcp_manager_result = crate::mcp::PracticalMcpManager::new("mcp.json");
+    let mcp_manager = match mcp_manager_result {
+        Ok(manager) => {
+            // Test configuration loading
+            let manager_clone = manager.clone();
+            tokio::spawn(async move {
+                if let Err(e) = manager_clone.test_config_loading().await {
+                    eprintln!("Failed to test MCP config loading: {}", e);
+                }
+            });
+            Arc::new(std::sync::Mutex::new(Some(manager)))
+        }
+        Err(e) => {
+            eprintln!("Failed to initialize MCP manager: {}", e);
+            Arc::new(std::sync::Mutex::new(None))
+        }
+    };
+
     let state = AppState {
         pool,
         tera,
         chat_repo,
+        mcp_manager,
     };
     let shared_app_state = Arc::new(state);
 

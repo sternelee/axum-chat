@@ -27,6 +27,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 markdown = "1"
 regex = "1.12.2"
 html-escape = "0.2.13"
+rmcp = { version = "0.9", features = ["transport-io", "client", "transport-child-process"] }
 
 [profile.release]
 opt-level = 3

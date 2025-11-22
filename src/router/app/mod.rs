@@ -29,6 +29,11 @@ use agents::{
     agents_list, api_agents_list, api_create_agent, api_delete_agent, api_get_agent, api_update_agent,
     api_provider_models,
 };
+mod mcp;
+use mcp::{
+    mcp_config_page, get_services, create_service, update_service, delete_service, start_service,
+    stop_service, get_service_status, get_tools,
+};
 
 use crate::middleware::auth;
 
@@ -67,6 +72,19 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .with_state(state.clone())
         .layer(axum::middleware::from_fn(auth));
 
+    let mcp_router = Router::new()
+        .route("/", get(mcp_config_page))
+        .route("/api/services", get(get_services))
+        .route("/api/services", post(create_service))
+        .route("/api/services/{id}", put(update_service))
+        .route("/api/services/{id}", delete(delete_service))
+        .route("/api/services/{id}/start", post(start_service))
+        .route("/api/services/{id}/stop", post(stop_service))
+        .route("/api/services/{id}/status", get(get_service_status))
+        .route("/api/tools", get(get_tools))
+        .with_state(state.clone())
+        .layer(axum::middleware::from_fn(auth));
+
     let api_router = Router::new()
         .route("/approve-tool", post(approve_tool))
         .route("/reject-tool", post(reject_tool))
@@ -86,6 +104,7 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .nest("/settings", settings_router)
         .nest("/providers", providers_router)
         .nest("/agents", agents_router)
+        .nest("/mcp", mcp_router)
         .nest("/api", api_router)
         .with_state(state.clone())
 }

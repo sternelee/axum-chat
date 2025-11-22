@@ -1,0 +1,407 @@
+<div class="container mx-auto p-4 max-w-6xl">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold mb-2">MCP Configuration</h1>
+    <p class="text-gray-600">Manage Model Context Protocol (MCP) services and tools</p>
+  </div>
+
+  <!-- Global Settings -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <h2 class="card-title text-xl">Global Settings</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Auto Start Services</span>
+          </label>
+          <input type="checkbox" class="toggle toggle-primary" id="autoStart" checked>
+          <label class="label">
+            <span class="label-text-alt">Automatically start enabled services on application startup</span>
+          </label>
+        </div>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Require Tool Approval</span>
+          </label>
+          <input type="checkbox" class="toggle toggle-primary" id="requireApproval" checked>
+          <label class="label">
+            <span class="label-text-alt">Require manual approval for new tools</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service List -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="card-title text-xl">MCP Services</h2>
+        <button class="btn btn-primary" onclick="addNewService()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Add Service
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Status</th>
+              <th>Type</th>
+              <th>Tools</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="serviceTableBody">
+            <!-- Services will be populated here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service Details Modal -->
+  <div class="modal" id="serviceModal">
+    <div class="modal-box modal-wide">
+      <h3 class="font-bold text-lg mb-4">Service Configuration</h3>
+
+      <form id="serviceForm" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Service ID</span>
+            </label>
+            <input type="text" id="serviceId" class="input input-bordered w-full" required>
+          </div>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Service Name</span>
+            </label>
+            <input type="text" id="serviceName" class="input input-bordered w-full" required>
+          </div>
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Description</span>
+          </label>
+          <textarea id="serviceDescription" class="textarea textarea-bordered w-full" rows="2"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Command</span>
+            </label>
+            <input type="text" id="serviceCommand" class="input input-bordered w-full" required>
+          </div>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Arguments (JSON array)</span>
+            </label>
+            <input type="text" id="serviceArgs" class="input input-bordered w-full" placeholder='["arg1", "arg2"]'>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Timeout (ms)</span>
+            </label>
+            <input type="number" id="serviceTimeout" class="input input-bordered w-full" value="30000">
+          </div>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Max Restarts</span>
+            </label>
+            <input type="number" id="serviceMaxRestarts" class="input input-bordered w-full" value="3">
+          </div>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Auto Restart</span>
+            </label>
+            <input type="checkbox" id="serviceAutoRestart" class="toggle toggle-primary" checked>
+          </div>
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Environment Variables (JSON)</span>
+          </label>
+          <textarea id="serviceEnv" class="textarea textarea-bordered w-full" rows="3" placeholder='{"KEY": "value"}'></textarea>
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Available Tools (comma-separated)</span>
+          </label>
+          <input type="text" id="serviceTools" class="input input-bordered w-full" placeholder="tool1, tool2, tool3">
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Permissions (JSON)</span>
+          </label>
+          <textarea id="servicePermissions" class="textarea textarea-bordered w-full" rows="4" placeholder='{"allowed_paths": ["/path"], "max_file_size": "10MB"}'></textarea>
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Enable Service</span>
+          </label>
+          <input type="checkbox" id="serviceEnabled" class="toggle toggle-primary">
+        </div>
+      </form>
+
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeServiceModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveService()">Save Service</button>
+      </div>
+    </div>
+    <div class="modal-backdrop" onclick="closeServiceModal()"></div>
+  </div>
+
+  <!-- Service Actions Modal -->
+  <div class="modal" id="actionsModal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">Service Actions</h3>
+      <p id="actionsModalContent" class="py-4"></p>
+      <div class="modal-action">
+        <button class="btn btn-ghost" onclick="closeActionsModal()">Close</button>
+      </div>
+    </div>
+    <div class="modal-backdrop" onclick="closeActionsModal()"></div>
+  </div>
+</div>
+
+<script>
+let services = [];
+let currentEditingService = null;
+
+// Load MCP services
+async function loadServices() {
+  try {
+    const response = await fetch('/api/mcp/services');
+    services = await response.json();
+    renderServices();
+  } catch (error) {
+    console.error('Failed to load services:', error);
+    showToast('Failed to load MCP services', 'error');
+  }
+}
+
+// Render services table
+function renderServices() {
+  const tbody = document.getElementById('serviceTableBody');
+  tbody.innerHTML = '';
+
+  services.forEach(service => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>
+        <div class="font-bold">${service.name}</div>
+        <div class="text-sm opacity-50">${service.id}</div>
+      </td>
+      <td>
+        <div class="badge ${service.enabled ? 'badge-success' : 'badge-ghost'}">
+          ${service.enabled ? 'Enabled' : 'Disabled'}
+        </div>
+        ${service.status ? `<div class="text-xs opacity-50">${service.status}</div>` : ''}
+      </td>
+      <td>
+        <div class="badge badge-outline">${service.type || 'stdio'}</div>
+      </td>
+      <td>
+        <div class="text-sm">${service.tools ? service.tools.length : 0} tools</div>
+        ${service.tools ? `<div class="text-xs opacity-50">${service.tools.slice(0, 3).join(', ')}${service.tools.length > 3 ? '...' : ''}</div>` : ''}
+      </td>
+      <td>
+        <div class="flex gap-2">
+          <button class="btn btn-xs btn-ghost" onclick="editService('${service.id}')">Edit</button>
+          <button class="btn btn-xs btn-ghost" onclick="viewServiceDetails('${service.id}')">Details</button>
+          <button class="btn btn-xs ${service.enabled ? 'btn-warning' : 'btn-success'}"
+                  onclick="toggleService('${service.id}')">
+            ${service.enabled ? 'Stop' : 'Start'}
+          </button>
+          <button class="btn btn-xs btn-error" onclick="deleteService('${service.id}')">Delete</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// Add new service
+function addNewService() {
+  currentEditingService = null;
+  document.getElementById('serviceForm').reset();
+  document.getElementById('serviceModal').classList.add('modal-open');
+}
+
+// Edit service
+function editService(serviceId) {
+  const service = services.find(s => s.id === serviceId);
+  if (!service) return;
+
+  currentEditingService = service;
+
+  // Populate form
+  document.getElementById('serviceId').value = service.id;
+  document.getElementById('serviceName').value = service.name;
+  document.getElementById('serviceDescription').value = service.description || '';
+  document.getElementById('serviceCommand').value = service.command;
+  document.getElementById('serviceArgs').value = service.args ? JSON.stringify(service.args) : '';
+  document.getElementById('serviceTimeout').value = service.timeout || 30000;
+  document.getElementById('serviceMaxRestarts').value = service.max_restarts || 3;
+  document.getElementById('serviceAutoRestart').checked = service.auto_restart !== false;
+  document.getElementById('serviceEnv').value = service.env ? JSON.stringify(service.env) : '';
+  document.getElementById('serviceTools').value = service.tools ? service.tools.join(', ') : '';
+  document.getElementById('servicePermissions').value = service.permissions ? JSON.stringify(service.permissions) : '';
+  document.getElementById('serviceEnabled').checked = service.enabled;
+
+  document.getElementById('serviceModal').classList.add('modal-open');
+}
+
+// Save service
+async function saveService() {
+  try {
+    const formData = {
+      id: document.getElementById('serviceId').value,
+      name: document.getElementById('serviceName').value,
+      description: document.getElementById('serviceDescription').value,
+      command: document.getElementById('serviceCommand').value,
+      args: document.getElementById('serviceArgs').value ? JSON.parse(document.getElementById('serviceArgs').value) : [],
+      timeout: parseInt(document.getElementById('serviceTimeout').value),
+      max_restarts: parseInt(document.getElementById('serviceMaxRestarts').value),
+      auto_restart: document.getElementById('serviceAutoRestart').checked,
+      env: document.getElementById('serviceEnv').value ? JSON.parse(document.getElementById('serviceEnv').value) : {},
+      tools: document.getElementById('serviceTools').value.split(',').map(t => t.trim()).filter(t => t),
+      permissions: document.getElementById('servicePermissions').value ? JSON.parse(document.getElementById('servicePermissions').value) : {},
+      enabled: document.getElementById('serviceEnabled').checked
+    };
+
+    const url = currentEditingService ? `/api/mcp/services/${currentEditingService.id}` : '/api/mcp/services';
+    const method = currentEditingService ? 'PUT' : 'POST';
+
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData)
+    });
+
+    if (response.ok) {
+      showToast('Service saved successfully', 'success');
+      closeServiceModal();
+      loadServices();
+    } else {
+      throw new Error('Failed to save service');
+    }
+  } catch (error) {
+    console.error('Error saving service:', error);
+    showToast('Failed to save service: ' + error.message, 'error');
+  }
+}
+
+// Toggle service
+async function toggleService(serviceId) {
+  try {
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return;
+
+    const action = service.enabled ? 'stop' : 'start';
+    const response = await fetch(`/api/mcp/services/${serviceId}/${action}`, { method: 'POST' });
+
+    if (response.ok) {
+      showToast(`Service ${action}ed successfully`, 'success');
+      loadServices();
+    } else {
+      throw new Error(`Failed to ${action} service`);
+    }
+  } catch (error) {
+    console.error('Error toggling service:', error);
+    showToast('Failed to toggle service: ' + error.message, 'error');
+  }
+}
+
+// Delete service
+async function deleteService(serviceId) {
+  if (!confirm('Are you sure you want to delete this service?')) return;
+
+  try {
+    const response = await fetch(`/api/mcp/services/${serviceId}`, { method: 'DELETE' });
+
+    if (response.ok) {
+      showToast('Service deleted successfully', 'success');
+      loadServices();
+    } else {
+      throw new Error('Failed to delete service');
+    }
+  } catch (error) {
+    console.error('Error deleting service:', error);
+    showToast('Failed to delete service: ' + error.message, 'error');
+  }
+}
+
+// View service details
+function viewServiceDetails(serviceId) {
+  const service = services.find(s => s.id === serviceId);
+  if (!service) return;
+
+  const content = `
+    <div class="space-y-2">
+      <p><strong>ID:</strong> ${service.id}</p>
+      <p><strong>Name:</strong> ${service.name}</p>
+      <p><strong>Description:</strong> ${service.description || 'No description'}</p>
+      <p><strong>Command:</strong> ${service.command}</p>
+      <p><strong>Arguments:</strong> ${service.args ? JSON.stringify(service.args) : 'None'}</p>
+      <p><strong>Status:</strong> ${service.enabled ? 'Enabled' : 'Disabled'}</p>
+      <p><strong>Tools:</strong> ${service.tools ? service.tools.join(', ') : 'None'}</p>
+    </div>
+  `;
+
+  document.getElementById('actionsModalContent').innerHTML = content;
+  document.getElementById('actionsModal').classList.add('modal-open');
+}
+
+// Close modals
+function closeServiceModal() {
+  document.getElementById('serviceModal').classList.remove('modal-open');
+}
+
+function closeActionsModal() {
+  document.getElementById('actionsModal').classList.remove('modal-open');
+}
+
+// Toast notification
+function showToast(message, type = 'info') {
+  // Simple toast implementation
+  const toast = document.createElement('div');
+  toast.className = `toast toast-top toast-end`;
+  toast.innerHTML = `
+    <div class="alert alert-${type}">
+      <span>${message}</span>
+    </div>
+  `;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+  loadServices();
+});
+</script>
+
+<style>
+.modal-wide {
+  max-width: 800px;
+}
+</style>

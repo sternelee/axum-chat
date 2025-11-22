@@ -1,0 +1,185 @@
+{
+  "services": [
+    {
+      "id": "filesystem",
+      "name": "Local Filesystem",
+      "description": "Access local filesystem for reading and writing files",
+      "enabled": true,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/tmp/mcp-files"
+      ],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "timeout": 30000,
+      "auto_restart": true,
+      "max_restarts": 3,
+      "permissions": {
+        "allowed_paths": ["/tmp/mcp-files", "/Users/sternelee/www/github/rustgpt/uploads"],
+        "allowed_extensions": ["txt", "md", "json", "csv", "py", "js", "rs"],
+        "max_file_size": "10MB",
+        "read_only": false
+      },
+      "tools": ["read_file", "write_file", "list_directory", "create_directory", "delete_file"]
+    },
+    {
+      "id": "github",
+      "name": "GitHub Repository Access",
+      "description": "Access GitHub repositories and perform operations",
+      "enabled": false,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "timeout": 45000,
+      "auto_restart": true,
+      "max_restarts": 2,
+      "permissions": {
+        "allowed_repos": ["sternelee/*"],
+        "allowed_operations": ["read", "write", "comment"],
+        "rate_limit": {
+          "requests_per_hour": 1000
+        }
+      },
+      "tools": ["github_create_or_update_file", "github_get_file", "github_create_pull_request", "github_search_repositories"]
+    },
+    {
+      "id": "brave-search",
+      "name": "Brave Search Engine",
+      "description": "Web search capabilities using Brave Search API",
+      "enabled": true,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      },
+      "timeout": 30000,
+      "auto_restart": true,
+      "max_restarts": 2,
+      "permissions": {
+        "max_searches_per_minute": 10,
+        "allowed_search_types": ["web", "news", "images"]
+      },
+      "tools": ["brave_web_search", "brave_search_news", "brave_search_images"]
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL Database",
+      "description": "Connect to and query PostgreSQL databases",
+      "enabled": false,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "${POSTGRES_URL}"
+      },
+      "timeout": 60000,
+      "auto_restart": true,
+      "max_restarts": 2,
+      "permissions": {
+        "allowed_databases": ["rustgpt_*"],
+        "allowed_operations": ["select", "insert", "update"],
+        "max_rows_per_query": 1000,
+        "query_timeout": 30
+      },
+      "tools": ["postgres_query", "postgres_describe_table", "postgres_list_tables"]
+    },
+    {
+      "id": "puppeteer",
+      "name": "Web Automation",
+      "description": "Automate web browser interactions using Puppeteer",
+      "enabled": false,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
+      "env": {
+        "PUPPETEER_HEADLESS": "true"
+      },
+      "timeout": 120000,
+      "auto_restart": true,
+      "max_restarts": 1,
+      "permissions": {
+        "allowed_domains": ["localhost:3000", "example.com"],
+        "max_pages_per_session": 5,
+        "page_timeout": 30
+      },
+      "tools": ["puppeteer_navigate", "puppeteer_click", "puppeteer_type", "puppeteer_screenshot", "puppeteer_get_content"]
+    }
+  ],
+  "global_settings": {
+    "max_concurrent_services": 10,
+    "default_timeout": 30000,
+    "log_level": "info",
+    "auto_start_enabled_services": true,
+    "health_check_interval": 60000,
+    "service_discovery": {
+      "auto_discover": true,
+      "discovery_paths": ["./mcp-services", "./external-mcp"]
+    }
+  },
+  "security": {
+    "require_approval_for_new_tools": true,
+    "allowed_tool_categories": ["filesystem", "database", "web", "search"],
+    "blocked_tools": [],
+    "rate_limiting": {
+      "global_requests_per_minute": 100,
+      "per_service_limits": {
+        "filesystem": 50,
+        "github": 30,
+        "brave-search": 20,
+        "postgres": 40,
+        "puppeteer": 10
+      }
+    },
+    "audit_logging": {
+      "enabled": true,
+      "log_file": "./logs/mcp-audit.log",
+      "log_tool_calls": true,
+      "log_service_starts": true
+    }
+  },
+  "integrations": {
+    "rustgpt": {
+      "auto_approve_tools": ["filesystem"],
+      "tool_timeout_override": 45000,
+      "custom_tools": {
+        "read_code_file": {
+          "service": "filesystem",
+          "tool": "read_file",
+          "description": "Read source code files with syntax highlighting",
+          "allowed_extensions": ["rs", "py", "js", "ts", "jsx", "tsx", "java", "cpp", "c"],
+          "preprocessing": {
+            "syntax_highlight": true,
+            "line_numbers": true
+          }
+        },
+        "save_chat_history": {
+          "service": "filesystem",
+          "tool": "write_file",
+          "description": "Save chat history to structured format",
+          "output_path": "./data/chat-history",
+          "file_format": "json"
+        }
+      }
+    }
+  }
+}
