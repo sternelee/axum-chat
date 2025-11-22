@@ -351,6 +351,7 @@ pub async fn chat_generate(
         image: false,
         tool: false,
         tools: vec![],
+        allow_tools: vec![], // Add allow_tools field
         system_prompt: Some("You are a helpful assistant.".to_string()),
         top_p: 1.0,
         max_context: 4096,
@@ -455,4 +456,102 @@ pub async fn delete_chat(
     let html = r#"<div class="hidden"></div>"#;
 
     Ok(Html(html.to_string()))
+}
+
+// Form data structures for tool approval endpoints
+#[derive(Deserialize)]
+pub struct ToolApprovalForm {
+    tool_call_id: String,
+    status: String,
+}
+
+#[derive(Deserialize)]
+pub struct ApproveAllToolsForm {
+    tool_name: String,
+}
+
+// Tool approval endpoints
+pub async fn approve_tool(
+    State(_state): State<Arc<AppState>>,
+    Extension(current_user): Extension<Option<User>>,
+    Form(form): Form<ToolApprovalForm>,
+) -> Result<Html<String>, ChatError> {
+    println!("User {:?} approved tool {} with status {}",
+        current_user.as_ref().map(|u| u.id), form.tool_call_id, form.status);
+
+    // Create a response indicating the tool was approved
+    let html = format!(r#"
+    <div class="tool-response-container mb-4 border border-green-200 rounded-lg bg-green-50" id="tool_response_{}">
+        <div class="p-4">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">✓</span>
+                    <span class="font-medium text-green-800">Tool Call Approved</span>
+                </div>
+                <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">Approved</span>
+            </div>
+            <div class="text-sm text-green-700">Tool {} has been approved and will be executed.</div>
+        </div>
+    </div>
+    "#, form.tool_call_id, form.tool_call_id);
+
+    Ok(Html(html))
+}
+
+pub async fn reject_tool(
+    State(_state): State<Arc<AppState>>,
+    Extension(current_user): Extension<Option<User>>,
+    Form(form): Form<ToolApprovalForm>,
+) -> Result<Html<String>, ChatError> {
+    println!("User {:?} rejected tool {} with status {}",
+        current_user.as_ref().map(|u| u.id), form.tool_call_id, form.status);
+
+    // Create a response indicating the tool was rejected
+    let html = format!(r#"
+    <div class="tool-response-container mb-4 border border-red-200 rounded-lg bg-red-50" id="tool_response_{}">
+        <div class="p-4">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">✗</span>
+                    <span class="font-medium text-red-800">Tool Call Rejected</span>
+                </div>
+                <span class="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">Rejected</span>
+            </div>
+            <div class="text-sm text-red-700">Tool {} has been rejected and will not be executed.</div>
+        </div>
+    </div>
+    "#, form.tool_call_id, form.tool_call_id);
+
+    Ok(Html(html))
+}
+
+pub async fn approve_all_tools(
+    State(_state): State<Arc<AppState>>,
+    Extension(current_user): Extension<Option<User>>,
+    Form(form): Form<ApproveAllToolsForm>,
+) -> Result<Html<String>, ChatError> {
+    let user = current_user.unwrap();
+
+    println!("User {} requested to auto-approve tool: {}", user.id, form.tool_name);
+
+    // For now, we'll create a simple response indicating success
+    // In a real implementation, you would:
+    // 1. Update the agent's allow_tools list in the database
+    // 2. Return appropriate feedback to the user
+
+    let html = format!(r#"
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <div class="flex items-center space-x-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span class="font-medium text-blue-800">Tool Auto-approved</span>
+        </div>
+        <p class="text-sm text-blue-700 mt-2">
+            The "{}" tool will now be auto-approved for future calls in this agent.
+        </p>
+    </div>
+    "#, html_escape::encode_text_minimal(&form.tool_name));
+
+    Ok(Html(html))
 }

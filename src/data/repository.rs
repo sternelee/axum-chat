@@ -320,7 +320,7 @@ impl ChatRepository {
             r#"
             SELECT
                 id, user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                COALESCE(tools, '[]') as tools, system_prompt,
+                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as "allow_tools!", system_prompt,
                 COALESCE(top_p, 1.0) as top_p, COALESCE(max_context, 4096) as max_context, file,
                 COALESCE(file_types, '[]') as file_types, COALESCE(temperature, 0.7) as temperature,
                 COALESCE(max_tokens, 2048) as max_tokens, COALESCE(presence_penalty, 0.0) as presence_penalty,
@@ -342,7 +342,7 @@ impl ChatRepository {
             r#"
             SELECT
                 id, user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                COALESCE(tools, '[]') as tools, system_prompt,
+                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as "allow_tools!", system_prompt,
                 COALESCE(top_p, 1.0) as top_p, COALESCE(max_context, 4096) as max_context, file,
                 COALESCE(file_types, '[]') as file_types, COALESCE(temperature, 0.7) as temperature,
                 COALESCE(max_tokens, 2048) as max_tokens, COALESCE(presence_penalty, 0.0) as presence_penalty,
@@ -366,7 +366,7 @@ impl ChatRepository {
             r#"
             SELECT
                 id, user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                COALESCE(tools, '[]') as tools, system_prompt,
+                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as "allow_tools!", system_prompt,
                 COALESCE(top_p, 1.0) as top_p, COALESCE(max_context, 4096) as max_context, file,
                 COALESCE(file_types, '[]') as file_types, COALESCE(temperature, 0.7) as temperature,
                 COALESCE(max_tokens, 2048) as max_tokens, COALESCE(presence_penalty, 0.0) as presence_penalty,
@@ -389,7 +389,7 @@ impl ChatRepository {
             r#"
             SELECT
                 id, user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                COALESCE(tools, '[]') as tools, system_prompt,
+                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as "allow_tools!", system_prompt,
                 COALESCE(top_p, 1.0) as top_p, COALESCE(max_context, 4096) as max_context, file,
                 COALESCE(file_types, '[]') as file_types, COALESCE(temperature, 0.7) as temperature,
                 COALESCE(max_tokens, 2048) as max_tokens, COALESCE(presence_penalty, 0.0) as presence_penalty,
@@ -410,6 +410,7 @@ impl ChatRepository {
 
             if let Some(provider) = provider {
                 let tools: Vec<String> = serde_json::from_str(&agent_row.tools).unwrap_or_default();
+                let allow_tools: Vec<String> = serde_json::from_str(&agent_row.allow_tools).unwrap_or_default();
                 let file_types: Vec<String> = serde_json::from_str(&agent_row.file_types).unwrap_or_default();
 
                 Ok(Some(AgentWithProvider {
@@ -425,6 +426,7 @@ impl ChatRepository {
                     image: agent_row.image,
                     tool: agent_row.tool,
                     tools,
+                    allow_tools,
                     system_prompt: agent_row.system_prompt,
                     top_p: agent_row.top_p,
                     max_context: agent_row.max_context,
@@ -451,6 +453,7 @@ impl ChatRepository {
 
     pub async fn create_agent(&self, user_id: i64, request: CreateAgentRequest) -> sqlx::Result<i64> {
         let tools_json = serde_json::to_string(&request.tools.unwrap_or_default()).unwrap_or_default();
+        let allow_tools_json = serde_json::to_string(&request.allow_tools.unwrap_or_default()).unwrap_or_default();
         let file_types_json = serde_json::to_string(&request.file_types.unwrap_or_default()).unwrap_or_default();
 
         // Create bindings for values that need longer lifetimes
@@ -473,9 +476,9 @@ impl ChatRepository {
         let result: sqlx::sqlite::SqliteQueryResult = sqlx::query!(
             r#"
             INSERT INTO agents (user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                               tools, system_prompt, top_p, max_context, file, file_types, temperature, max_tokens,
+                               tools, allow_tools, system_prompt, top_p, max_context, file, file_types, temperature, max_tokens,
                                presence_penalty, frequency_penalty, icon, category, public, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             user_id,
             request.name,
@@ -488,6 +491,7 @@ impl ChatRepository {
             image_val,
             tool_val,
             tools_json,
+            allow_tools_json,
             request.system_prompt,
             top_p_val,
             max_context_val,
@@ -551,6 +555,10 @@ impl ChatRepository {
         if let Some(tools) = &request.tools {
             query.push_str(", tools = ?");
             params.push(serde_json::to_string(tools).unwrap_or_default());
+        }
+        if let Some(allow_tools) = &request.allow_tools {
+            query.push_str(", allow_tools = ?");
+            params.push(serde_json::to_string(allow_tools).unwrap_or_default());
         }
         if let Some(system_prompt) = &request.system_prompt {
             query.push_str(", system_prompt = ?");

@@ -78,6 +78,7 @@ pub struct Agent {
     pub image: bool,
     pub tool: bool,
     pub tools: String, // JSON array
+    pub allow_tools: String, // JSON array of auto-approved tool IDs
     pub system_prompt: Option<String>,
     pub top_p: f64,
     pub max_context: i64,
@@ -124,6 +125,7 @@ pub struct CreateAgentRequest {
     pub image: Option<bool>,
     pub tool: Option<bool>,
     pub tools: Option<Vec<String>>,
+    pub allow_tools: Option<Vec<String>>,
     pub system_prompt: Option<String>,
     pub top_p: Option<f64>,
     pub max_context: Option<i64>,
@@ -150,6 +152,7 @@ pub struct UpdateAgentRequest {
     pub image: Option<bool>,
     pub tool: Option<bool>,
     pub tools: Option<Vec<String>>,
+    pub allow_tools: Option<Vec<String>>,
     pub system_prompt: Option<String>,
     pub top_p: Option<f64>,
     pub max_context: Option<i64>,
@@ -180,6 +183,7 @@ pub struct AgentWithProvider {
     pub image: bool,
     pub tool: bool,
     pub tools: Vec<String>,
+    pub allow_tools: Vec<String>,
     pub system_prompt: Option<String>,
     pub top_p: f64,
     pub max_context: i64,

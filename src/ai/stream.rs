@@ -397,12 +397,15 @@ async fn generate_openai_stream(
                                     let tool_name = function.get("name").and_then(|n| n.as_str()).unwrap_or("");
                                     let tool_args = function.get("arguments").and_then(|a| a.as_str()).unwrap_or("{}");
 
+                                    // Check if this tool is auto-approved
+                                    let requires_approval = !agent.allow_tools.contains(&tool_name.to_string());
+
                                     if sender.send(Ok(GenerationEvent::ToolCall(ToolCallEvent {
                                         id: call_id.to_string(),
                                         name: tool_name.to_string(),
                                         arguments: tool_args.to_string(),
                                         description: Some(format!("Execute tool: {}", tool_name)),
-                                        requires_approval: true, // Require approval for all tool calls
+                                        requires_approval,
                                     }))).await.is_err() {
                                         break;
                                     }
@@ -627,12 +630,15 @@ async fn generate_gemini_stream(
                                     let tool_call_id = format!("tool_{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
                                     let args_json = serde_json::to_string(&function_call.args).unwrap_or_else(|_| "{}".to_string());
 
+                                    // Check if this tool is auto-approved
+                                    let requires_approval = !agent.allow_tools.contains(&function_call.name);
+
                                     if sender.send(Ok(GenerationEvent::ToolCall(ToolCallEvent {
                                         id: tool_call_id,
                                         name: function_call.name.clone(),
                                         arguments: args_json,
                                         description: Some(format!("Execute Gemini function: {}", function_call.name)),
-                                        requires_approval: true,
+                                        requires_approval,
                                     }))).await.is_err() {
                                         break;
                                     }
@@ -789,6 +795,19 @@ pub fn generate_tool_call_html(event: &ToolCallEvent) -> String {
 
         {}
 
+        <div class="mb-3 pb-3 border-b border-yellow-200">
+            <form hx-post="/api/approve-all-tools" hx-target="{}" hx-swap="outerHTML">
+                <input type="hidden" name="tool_name" value="{}">
+                <button type="submit"
+                        class="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Approve All "{}" (Auto-approved in future)
+                </button>
+            </form>
+        </div>
+
         <div class="flex space-x-2">
             <form hx-post="/api/approve-tool" hx-target="{}" hx-swap="outerHTML" class="flex-1">
                 <input type="hidden" name="tool_call_id" value="{}">
@@ -798,7 +817,7 @@ pub fn generate_tool_call_html(event: &ToolCallEvent) -> String {
                     <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
-                    Approve
+                    Approve Once
                 </button>
             </form>
 
@@ -826,6 +845,9 @@ pub fn generate_tool_call_html(event: &ToolCallEvent) -> String {
         } else {
             String::new()
         },
+        tool_target,
+        html_escape::encode_text_minimal(&event.name),
+        html_escape::encode_text_minimal(&event.name),
         tool_target, event.id,
         tool_target, event.id
     )

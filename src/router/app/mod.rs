@@ -10,7 +10,7 @@ use crate::{middleware::valid_openai_api_key, AppState};
 mod home;
 use home::app;
 mod chat;
-use chat::{chat, chat_add_message, chat_by_id, chat_generate, delete_chat, new_chat};
+use chat::{chat, chat_add_message, chat_by_id, chat_generate, delete_chat, new_chat, approve_tool, reject_tool, approve_all_tools};
 mod auth;
 use auth::{form_signup, login, login_form, logout, signup};
 mod blog;
@@ -67,6 +67,13 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .with_state(state.clone())
         .layer(axum::middleware::from_fn(auth));
 
+    let api_router = Router::new()
+        .route("/approve-tool", post(approve_tool))
+        .route("/reject-tool", post(reject_tool))
+        .route("/approve-all-tools", post(approve_all_tools))
+        .with_state(state.clone())
+        .layer(axum::middleware::from_fn(auth));
+
     Router::new()
         .route("/", get(app))
         .route("/error", get(error))
@@ -79,5 +86,6 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .nest("/settings", settings_router)
         .nest("/providers", providers_router)
         .nest("/agents", agents_router)
+        .nest("/api", api_router)
         .with_state(state.clone())
 }
