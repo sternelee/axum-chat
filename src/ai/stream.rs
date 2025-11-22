@@ -24,6 +24,44 @@ struct ModelList {
     data: Vec<Model>,
 }
 
+// OpenAI tool call structures
+#[derive(Serialize, Deserialize, Debug)]
+struct OpenAIToolCall {
+    id: String,
+    r#type: String,
+    function: OpenAIFunction,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct OpenAIFunction {
+    name: String,
+    arguments: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct OpenAIToolChoice {
+    r#type: String,
+    function: OpenAIFunctionChoice,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct OpenAIFunctionChoice {
+    name: String,
+}
+
+// OpenAI thinking/reasoning structures (for models like o1)
+#[derive(Serialize, Deserialize, Debug)]
+struct OpenAIReasoningContent {
+    r#type: String,
+    text: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct OpenAIReasoningDelta {
+    r#type: String,
+    text: String,
+}
+
 // Gemini API response structures
 #[derive(Serialize, Deserialize, Debug)]
 struct GeminiContent {
@@ -33,7 +71,57 @@ struct GeminiContent {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct GeminiPart {
-    text: String,
+    #[serde(flatten)]
+    part_type: GeminiPartType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+enum GeminiPartType {
+    Text { text: String },
+    FunctionCall { function_call: GeminiFunctionCall },
+    FunctionResponse { function_response: GeminiFunctionResponse },
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct GeminiFunctionCall {
+    name: String,
+    args: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct GeminiFunctionResponse {
+    name: String,
+    response: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct GeminiTool {
+    function_declarations: Vec<GeminiFunctionDeclaration>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct GeminiFunctionDeclaration {
+    name: String,
+    description: String,
+    parameters: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct GeminiToolConfig {
+    function_calling_config: GeminiFunctionCallingConfig,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct GeminiFunctionCallingConfig {
+    mode: String,
+    allowed_function_names: Option<Vec<String>>,
+}
+
+// Gemini thinking structures (for models that support it)
+#[derive(Serialize, Deserialize, Debug)]
+struct GeminiThoughtContent {
+    thought: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -41,6 +129,8 @@ struct GeminiGenerateContentRequest {
     contents: Vec<GeminiContent>,
     generation_config: Option<GeminiGenerationConfig>,
     safety_settings: Option<Vec<GeminiSafetySetting>>,
+    tools: Option<Vec<GeminiTool>>,
+    tool_config: Option<GeminiToolConfig>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -72,7 +162,36 @@ struct GeminiCandidate {
 #[derive(Debug)]
 pub enum GenerationEvent {
     Text(String),
+    Thinking(ThinkingEvent),
+    ToolCall(ToolCallEvent),
+    ToolResponse(ToolResponseEvent),
     End(String),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThinkingEvent {
+    pub id: String,
+    pub content: String,
+    pub is_final: bool,
+    pub is_collapsed: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolCallEvent {
+    pub id: String,
+    pub name: String,
+    pub arguments: String,
+    pub description: Option<String>,
+    pub requires_approval: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolResponseEvent {
+    pub id: String,
+    pub call_id: String,
+    pub status: String, // "approved" | "rejected" | "executed"
+    pub result: Option<String>,
+    pub error: Option<String>,
 }
 
 /// List available models for a provider
@@ -203,6 +322,29 @@ async fn generate_openai_stream(
         request_body["frequency_penalty"] = json!(agent.frequency_penalty);
     }
 
+    // Add tools if configured
+    if agent.tool && !agent.tools.is_empty() {
+        let tools: Vec<Value> = agent.tools.iter().map(|tool_name| {
+            json!({
+                "type": "function",
+                "function": {
+                    "name": tool_name,
+                    "description": format!("Tool: {}", tool_name),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }
+                }
+            })
+        }).collect();
+
+        request_body["tools"] = json!(tools);
+
+        // For tool calls that require approval, we use "auto" mode but will handle approval in UI
+        request_body["tool_choice"] = json!("auto");
+    }
+
     println!("OpenAI Request: {}", request_body);
 
     let client = reqwest::Client::new();
@@ -228,9 +370,69 @@ async fn generate_openai_stream(
                     break;
                 } else {
                     if let Ok(parsed) = serde_json::from_str::<Value>(&message.data) {
-                        if let Some(text) = parsed["choices"][0]["delta"]["content"].as_str() {
+                        let choice = &parsed["choices"][0];
+                        let delta = &choice["delta"];
+
+                        // Handle reasoning/thinking content (for models like o1)
+                        if let Some(reasoning_content) = choice["delta"]["reasoning_content"].as_str() {
+                            let thinking_id = format!("thinking_{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+                            if sender.send(Ok(GenerationEvent::Thinking(ThinkingEvent {
+                                id: thinking_id.clone(),
+                                content: reasoning_content.to_string(),
+                                is_final: false,
+                                is_collapsed: false,
+                            }))).await.is_err() {
+                                break;
+                            }
+                        }
+
+                        // Handle tool calls
+                        if let Some(tool_calls) = delta["tool_calls"].as_array() {
+                            for tool_call in tool_calls {
+                                if let (Some(_index), Some(call_id), Some(function)) = (
+                                    tool_call["index"].as_u64(),
+                                    tool_call["id"].as_str(),
+                                    tool_call["function"].as_object()
+                                ) {
+                                    let tool_name = function.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                                    let tool_args = function.get("arguments").and_then(|a| a.as_str()).unwrap_or("{}");
+
+                                    if sender.send(Ok(GenerationEvent::ToolCall(ToolCallEvent {
+                                        id: call_id.to_string(),
+                                        name: tool_name.to_string(),
+                                        arguments: tool_args.to_string(),
+                                        description: Some(format!("Execute tool: {}", tool_name)),
+                                        requires_approval: true, // Require approval for all tool calls
+                                    }))).await.is_err() {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Handle regular text content
+                        if let Some(text) = delta["content"].as_str() {
                             if sender.send(Ok(GenerationEvent::Text(text.to_string()))).await.is_err() {
                                 break;
+                            }
+                        }
+
+                        // Handle finish reason
+                        if let Some(finish_reason) = choice["finish_reason"].as_str() {
+                            match finish_reason {
+                                "tool_calls" => {
+                                    // Tool calls completed, wait for user approval
+                                    println!("Tool calls completed, waiting for approval");
+                                }
+                                "stop" => {
+                                    // Normal completion
+                                    if sender.send(Ok(GenerationEvent::End(
+                                        r#"<div id="sse-listener" hx-swap-oob="true"></div>"#.to_string(),
+                                    ))).await.is_err() {
+                                        break;
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                     }
@@ -268,7 +470,9 @@ async fn generate_gemini_stream(
     if let Some(system_prompt) = &agent.system_prompt {
         contents.push(GeminiContent {
             parts: vec![GeminiPart {
-                text: format!("System: {}", system_prompt),
+                part_type: GeminiPartType::Text {
+                    text: format!("System: {}", system_prompt),
+                },
             }],
             role: "user".to_string(),
         });
@@ -276,7 +480,9 @@ async fn generate_gemini_stream(
         // Add a model response to acknowledge the system instruction
         contents.push(GeminiContent {
             parts: vec![GeminiPart {
-                text: "Understood. I will follow these instructions.".to_string(),
+                part_type: GeminiPartType::Text {
+                    text: "Understood. I will follow these instructions.".to_string(),
+                },
             }],
             role: "model".to_string(),
         });
@@ -286,7 +492,9 @@ async fn generate_gemini_stream(
     for msg in &messages {
         contents.push(GeminiContent {
             parts: vec![GeminiPart {
-                text: msg.human_message.clone(),
+                part_type: GeminiPartType::Text {
+                    text: msg.human_message.clone(),
+                },
             }],
             role: "user".to_string(),
         });
@@ -294,7 +502,9 @@ async fn generate_gemini_stream(
         if let Some(ai_message) = &msg.ai_message {
             contents.push(GeminiContent {
                 parts: vec![GeminiPart {
-                    text: ai_message.clone(),
+                    part_type: GeminiPartType::Text {
+                        text: ai_message.clone(),
+                    },
                 }],
                 role: "model".to_string(),
             });
@@ -320,6 +530,37 @@ async fn generate_gemini_stream(
         generation_config.max_output_tokens = Some(agent.max_tokens as i32);
     }
 
+    // Build tools if configured
+    let tools = if agent.tool && !agent.tools.is_empty() {
+        Some(vec![GeminiTool {
+            function_declarations: agent.tools.iter().map(|tool_name| {
+                GeminiFunctionDeclaration {
+                    name: tool_name.clone(),
+                    description: format!("Tool: {}", tool_name),
+                    parameters: json!({
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                    }),
+                }
+            }).collect(),
+        }])
+    } else {
+        None
+    };
+
+    // Configure tool calling
+    let tool_config = if tools.is_some() {
+        Some(GeminiToolConfig {
+            function_calling_config: GeminiFunctionCallingConfig {
+                mode: "AUTO".to_string(),
+                allowed_function_names: None,
+            },
+        })
+    } else {
+        None
+    };
+
     let request_body = GeminiGenerateContentRequest {
         contents,
         generation_config: Some(generation_config),
@@ -341,6 +582,8 @@ async fn generate_gemini_stream(
                 threshold: "BLOCK_NONE".to_string(),
             },
         ]),
+        tools,
+        tool_config,
     };
 
     let gemini_request_json = serde_json::to_string(&request_body)?;
@@ -360,18 +603,68 @@ async fn generate_gemini_stream(
             Ok(ReqwestEvent::Message(message)) => {
                 if let Ok(response) = serde_json::from_str::<GeminiStreamResponse>(&message.data) {
                     if let Some(candidate) = response.candidates.first() {
-                        if let Some(text) = candidate.content.parts.first() {
-                            if sender.send(Ok(GenerationEvent::Text(text.text.clone()))).await.is_err() {
-                                break;
+                        // Process all parts in the content
+                        for part in &candidate.content.parts {
+                            match &part.part_type {
+                                GeminiPartType::Text { text } => {
+                                    if sender.send(Ok(GenerationEvent::Text(text.clone()))).await.is_err() {
+                                        break;
+                                    }
+                                }
+                                GeminiPartType::FunctionCall { function_call } => {
+                                    let thinking_id = format!("thinking_{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+                                    // Send a thinking event first to indicate AI is reasoning about the tool call
+                                    if sender.send(Ok(GenerationEvent::Thinking(ThinkingEvent {
+                                        id: thinking_id.clone(),
+                                        content: format!("I need to call the '{}' function to help with this request.", function_call.name),
+                                        is_final: true,
+                                        is_collapsed: false,
+                                    }))).await.is_err() {
+                                        break;
+                                    }
+
+                                    // Then send the tool call event
+                                    let tool_call_id = format!("tool_{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+                                    let args_json = serde_json::to_string(&function_call.args).unwrap_or_else(|_| "{}".to_string());
+
+                                    if sender.send(Ok(GenerationEvent::ToolCall(ToolCallEvent {
+                                        id: tool_call_id,
+                                        name: function_call.name.clone(),
+                                        arguments: args_json,
+                                        description: Some(format!("Execute Gemini function: {}", function_call.name)),
+                                        requires_approval: true,
+                                    }))).await.is_err() {
+                                        break;
+                                    }
+                                }
+                                _ => {}
                             }
                         }
 
                         // Check if generation is complete
-                        if candidate.finish_reason.is_some() {
-                            println!("Gemini Stream completed.");
-                            stream.close();
-                            send_end_event(&sender).await;
-                            break;
+                        if let Some(finish_reason) = &candidate.finish_reason {
+                            match finish_reason.as_str() {
+                                "STOP" => {
+                                    println!("Gemini Stream completed normally.");
+                                    stream.close();
+                                    send_end_event(&sender).await;
+                                    break;
+                                }
+                                "MAX_TOKENS" => {
+                                    println!("Gemini Stream completed: Max tokens reached.");
+                                    if sender.send(Ok(GenerationEvent::End(
+                                        r#"<div id="sse-listener" hx-swap-oob="true"></div>"#.to_string(),
+                                    ))).await.is_err() {
+                                        break;
+                                    }
+                                }
+                                _ => {
+                                    println!("Gemini Stream completed with reason: {:?}", finish_reason);
+                                    stream.close();
+                                    send_end_event(&sender).await;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -396,6 +689,188 @@ async fn send_end_event(sender: &mpsc::Sender<Result<GenerationEvent, Error>>) {
             r#"<div id="sse-listener" hx-swap-oob="true"></div>"#.to_string(),
         )))
         .await;
+}
+
+/// Process tool call approval/rejection
+pub async fn process_tool_response(
+    tool_call_id: &str,
+    status: &str,
+    result: Option<String>,
+    error: Option<String>,
+    sender: &mpsc::Sender<Result<GenerationEvent, Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let response_event = ToolResponseEvent {
+        id: format!("tool_response_{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)),
+        call_id: tool_call_id.to_string(),
+        status: status.to_string(),
+        result,
+        error,
+    };
+
+    if sender.send(Ok(GenerationEvent::ToolResponse(response_event))).await.is_err() {
+        return Err("Failed to send tool response".into());
+    }
+
+    Ok(())
+}
+
+/// Generate HTML for thinking content with collapse functionality
+pub fn generate_thinking_html(event: &ThinkingEvent) -> String {
+    let thinking_target = format!("#thinking_content_{}", event.id);
+    format!(r#"
+<div class="thinking-container mb-4" id="thinking_{}">
+    <div class="thinking-header bg-gray-100 p-3 rounded-t-lg cursor-pointer hover:bg-gray-200 transition-colors"
+         hx-toggle="collapse"
+         hx-target="{}">
+        <div class="flex items-center justify-between ">
+            <div class="flex items-center space-x-2">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+                <span class="font-medium text-gray-700">Thinking Process</span>
+                <span class="text-sm text-gray-500">{}</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="thinking-toggle text-xs text-gray-500">
+                    <span class="collapse-show ">Show</span>
+                    <span class="collapse-hide ">Hide</span>
+                </span>
+                <svg class="w-4 h-4 transition-transform collapse-icon " fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </div>
+        </div>
+    </div>
+    <div class="thinking-content bg-white border border-t-0 border-gray-200 rounded-b-lg p-4 {}"
+         id="thinking_content_{}">
+        <div class="prose prose-sm max-w-none ">
+            <pre class="whitespace-pre-wrap text-sm text-gray-700 font-mono ">{}</pre>
+        </div>
+    </div>
+</div>
+    "#,
+        event.id,
+        thinking_target,
+        chrono::Utc::now().format("%H:%M:%S"),
+        if event.is_collapsed { "hidden" } else { "" },
+        event.id,
+        html_escape::encode_text_minimal(&event.content)
+    )
+}
+
+/// Generate HTML for tool call approval form
+pub fn generate_tool_call_html(event: &ToolCallEvent) -> String {
+    let tool_target = format!("#tool_{}", event.id);
+    format!(r#"
+<div class="tool-call-container mb-4 border border-yellow-200 rounded-lg bg-yellow-50" id="tool_{}">
+    <div class="p-4">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                <span class="font-medium text-yellow-800">Tool Call Required</span>
+            </div>
+            <span class="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded">ID: {}</span>
+        </div>
+
+        <div class="mb-3">
+            <div class="text-sm font-medium text-gray-700 mb-1">Function:</div>
+            <div class="text-sm font-mono bg-white px-2 py-1 rounded border">{}</div>
+        </div>
+
+        <div class="mb-3">
+            <div class="text-sm font-medium text-gray-700 mb-1">Arguments:</div>
+            <pre class="text-xs bg-gray-900 text-green-400 p-2 rounded overflow-x-auto">{}</pre>
+        </div>
+
+        {}
+
+        <div class="flex space-x-2">
+            <form hx-post="/api/approve-tool" hx-target="{}" hx-swap="outerHTML" class="flex-1">
+                <input type="hidden" name="tool_call_id" value="{}">
+                <input type="hidden" name="status" value="approved">
+                <button type="submit"
+                        class="w-full bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm font-medium transition-colors ">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Approve
+                </button>
+            </form>
+
+            <form hx-post="/api/reject-tool" hx-target="{}" hx-swap="outerHTML" class="flex-1">
+                <input type="hidden" name="tool_call_id" value="{}">
+                <input type="hidden" name="status" value="rejected">
+                <button type="submit"
+                        class="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm font-medium transition-colors ">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Reject
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+    "#,
+        event.id,
+        event.id,
+        html_escape::encode_text_minimal(&event.name),
+        html_escape::encode_text_minimal(&event.arguments),
+        if let Some(desc) = &event.description {
+            format!(r#"<div class="mb-3"><div class="text-sm font-medium text-gray-700 mb-1">Description:</div><div class="text-sm text-gray-600">{}</div></div>"#, desc)
+        } else {
+            String::new()
+        },
+        tool_target, event.id,
+        tool_target, event.id
+    )
+}
+
+/// Generate HTML for tool response
+pub fn generate_tool_response_html(event: &ToolResponseEvent) -> String {
+    let (color, icon, status_text) = match event.status.as_str() {
+        "approved" => ("green", "✓", "Approved"),
+        "rejected" => ("red", "✗", "Rejected"),
+        "executed" => ("blue", "⚡", "Executed"),
+        _ => ("gray", "?", "Unknown"),
+    };
+
+    format!(r#"
+<div class="tool-response-container mb-4 border border-{}-200 rounded-lg bg-{}-50" id="tool_response_{}">
+    <div class="p-4">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+                <span class="text-lg">{}</span>
+                <span class="font-medium text-{}-800">Tool Call {}</span>
+            </div>
+            <span class="text-xs text-{}-600 bg-{}-100 px-2 py-1 rounded">Call ID: {}</span>
+        </div>
+
+        {}
+
+        {}
+    </div>
+</div>
+    "#,
+        color, color, event.id,
+        icon, color, status_text,
+        color, color, event.call_id,
+        if let Some(result) = &event.result {
+            format!(r#"<div class="mb-2"><div class="text-sm font-medium text-gray-700 mb-1">Result:</div><pre class="text-sm bg-gray-100 p-2 rounded overflow-x-auto">{}</pre></div>"#, html_escape::encode_text_minimal(result))
+        } else {
+            String::new()
+        },
+        if let Some(error) = &event.error {
+            format!(r#"<div class="mb-2"><div class="text-sm font-medium text-red-700 mb-1">Error:</div><pre class="text-sm bg-red-100 text-red-800 p-2 rounded overflow-x-auto">{}</pre></div>"#, html_escape::encode_text_minimal(error))
+        } else {
+            String::new()
+        }
+    )
 }
 
 #[cfg(test)]

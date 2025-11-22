@@ -396,10 +396,25 @@ pub async fn chat_generate(
                     match event {
                         GenerationEvent::Text(text) => {
                             accumulated.push_str(&text);
-                            // Return the accumulated data as part of the SSE event
+                            // Return the accumulated data as part of the event
                             let html = markdown_to_html(&accumulated);
 
                             Some((Ok(Event::default().data(html)), (rc, accumulated)))
+                        }
+                        GenerationEvent::Thinking(thinking_event) => {
+                            // Generate HTML for thinking content
+                            let thinking_html = crate::ai::stream::generate_thinking_html(&thinking_event);
+                            Some((Ok(Event::default().data(thinking_html)), (rc, accumulated)))
+                        }
+                        GenerationEvent::ToolCall(tool_call_event) => {
+                            // Generate HTML for tool call approval form
+                            let tool_html = crate::ai::stream::generate_tool_call_html(&tool_call_event);
+                            Some((Ok(Event::default().data(tool_html)), (rc, accumulated)))
+                        }
+                        GenerationEvent::ToolResponse(tool_response_event) => {
+                            // Generate HTML for tool response
+                            let response_html = crate::ai::stream::generate_tool_response_html(&tool_response_event);
+                            Some((Ok(Event::default().data(response_html)), (rc, accumulated)))
                         }
                         GenerationEvent::End(_text) => {
                             println!("accumulated: {:?}", accumulated);
@@ -416,7 +431,7 @@ pub async fn chat_generate(
                             let close_event = Event::default().data(html).event("close");
 
                             Some((Ok(close_event), (rc, String::new())))
-                        } // ... handle other event types if necessary ...
+                        }
                     }
                 }
                 Some(Err(e)) => {
