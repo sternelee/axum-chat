@@ -1,142 +1,46 @@
 use axum::{
-    extract::{Path as AxumPath, State},
+    extract::{Extension, Path as AxumPath, State},
     http::StatusCode,
     response::{Html, Json},
 };
 use serde_json::{json, Value};
 use std::sync::Arc;
-use tower_cookies::Cookies;
+use tera::Context;
 
 use crate::data::model::{
     AgentWithProvider, CreateAgentRequest, ProviderModel, UpdateAgentRequest,
 };
-use crate::middleware::internal_error;
+use crate::{User, middleware::internal_error};
 
+/// Render enhanced agents configuration page
 pub async fn agents_list(
     State(state): State<Arc<crate::AppState>>,
-    _cookies: Cookies,
+    Extension(current_user): Extension<Option<User>>,
 ) -> Result<Html<String>, (StatusCode, String)> {
-    let repo = &state.chat_repo;
+    let mut context = Context::new();
+    context.insert("current_user", &current_user);
 
-    // TODO: Get user ID from authentication
-    let user_id = 1; // Placeholder
+    // Render the agents configuration page
+    let agents_view = state.tera.render("views/agents_config.html", &context).map_err(internal_error)?;
 
-    let agents = match repo.get_agents_by_user(user_id).await {
-        Ok(a) => a,
-        Err(e) => return Err(internal_error(e)),
-    };
+    // Wrap in main layout
+    let mut main_context = Context::new();
+    main_context.insert("view", &agents_view);
+    main_context.insert("current_user", &current_user);
+    main_context.insert("with_footer", &true);
 
-    let _providers = match repo.get_all_providers().await {
-        Ok(p) => p,
-        Err(e) => return Err(internal_error(e)),
-    };
-
-    let mut html = String::from(r#"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agents Management - RustGPT</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
-</head>
-<body class="bg-base-200">
-    <div class="container mx-auto px-4 py-8">
-        <div class="mb-6">
-            <h1 class="text-3xl font-bold mb-2">Agents Management</h1>
-            <p class="text-gray-600">Create and manage AI agents with different capabilities</p>
-        </div>
-
-        <div class="mb-6">
-            <button onclick="showCreateModal()" class="btn btn-primary">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Create Agent
-            </button>
-        </div>
-
-        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-"#);
-
-    for agent in agents {
-        let status_class = if agent.is_active { "success" } else { "error" };
-        let status_text = if agent.is_active { "Active" } else { "Inactive" };
-        let public_badge = if agent.public { r#"<span class="badge badge-info ml-2">Public</span>"# } else { "" };
-
-        html.push_str(&format!(r#"
-            <div class="card bg-base-100 shadow-xl">
-                <div class="card-body">
-                    <div class="flex justify-between items-start mb-2">
-                        <h2 class="card-title text-lg">
-                            <span class="text-2xl">{}</span>
-                            {}
-                        </h2>
-                        <div class="badge badge-{}">{}</div>
-                    </div>
-
-                    <p class="text-gray-600 mb-4">{}</p>
-
-                    <div class="text-sm space-y-1 mb-4">
-                        <div><strong>Model:</strong> {}</div>
-                        <div><strong>Provider:</strong> ID {}</div>
-                        <div><strong>Category:</strong> {}</div>
-                        <div class="flex flex-wrap gap-1 mt-2">
-"#,
-            agent.icon,
-            public_badge,
-            status_class,
-            status_text,
-            agent.description.unwrap_or_default(),
-            agent.model_name,
-            agent.provider_id,
-            agent.category
-        ));
-
-        if agent.stream {
-            html.push_str(r#"<span class="badge badge-outline badge-sm">Streaming</span>"#);
-        }
-        if agent.chat {
-            html.push_str(r#"<span class="badge badge-outline badge-sm">Chat</span>"#);
-        }
-        if agent.image {
-            html.push_str(r#"<span class="badge badge-outline badge-sm">Vision</span>"#);
-        }
-        if agent.tool {
-            html.push_str(r#"<span class="badge badge-outline badge-sm">Tools</span>"#);
-        }
-        if agent.file {
-            html.push_str(r#"<span class="badge badge-outline badge-sm">Files</span>"#);
-        }
-
-        html.push_str(&format!(r#"
-                        </div>
-                    </div>
-
-                    <div class="card-actions justify-end">
-                        <button onclick="editAgent({})" class="btn btn-sm btn-outline">Edit</button>
-                        <button onclick="deleteAgent({})" class="btn btn-sm btn-error btn-outline">Delete</button>
-                    </div>
-                </div>
-            </div>
-"#, agent.id, agent.id));
-    }
-
-    html.push_str(r#"
-        </div>
-    </div>
-"#);
-
-    Ok(Html(html))
+    let rendered = state.tera.render("views/main.html", &main_context).map_err(internal_error)?;
+    Ok(Html(rendered))
 }
 
 pub async fn api_agents_list(
     State(state): State<Arc<crate::AppState>>,
-) -> Result<Json<Vec<AgentWithProvider>>, (StatusCode, String)> {
+) -> Result<Json<Value>, (StatusCode, String)> {
     // TODO: Get user ID from authentication
     let user_id = 1; // Placeholder
+
     let agents = state.chat_repo.get_agents_by_user(user_id).await.map_err(internal_error)?;
+    let providers = state.chat_repo.get_all_providers().await.map_err(internal_error)?;
 
     let mut agents_with_providers = Vec::new();
     for agent in agents {
@@ -145,7 +49,12 @@ pub async fn api_agents_list(
         }
     }
 
-    Ok(Json(agents_with_providers))
+    let response = json!({
+        "agents": agents_with_providers,
+        "providers": providers
+    });
+
+    Ok(Json(response))
 }
 
 pub async fn api_get_agent(

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     http::StatusCode,
     response::{Html, IntoResponse},
     Json,
@@ -7,9 +7,10 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
+use tera::Context;
 use tracing::{info, error, warn};
 
-use crate::{AppState, mcp::practical::*};
+use crate::{AppState, mcp::practical::*, User};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceRequest {
@@ -67,9 +68,28 @@ impl From<PracticalMcpServiceConfig> for ServiceResponse {
 }
 
 /// Render MCP configuration page
-pub async fn mcp_config_page() -> impl IntoResponse {
-    let template_content = include_str!("../../../templates/mcp_config.html");
-    Html(template_content.to_string())
+pub async fn mcp_config_page(
+    State(state): State<Arc<crate::AppState>>,
+    Extension(current_user): Extension<Option<User>>,
+) -> Result<Html<String>, (StatusCode, String)> {
+    let mut context = Context::new();
+    context.insert("current_user", &current_user);
+
+    // Render the MCP configuration page
+    let mcp_view = state.tera.render("views/mcp_config.html", &context).map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
+
+    // Wrap in main layout
+    let mut main_context = Context::new();
+    main_context.insert("view", &mcp_view);
+    main_context.insert("current_user", &current_user);
+    main_context.insert("with_footer", &true);
+
+    let rendered = state.tera.render("views/main.html", &main_context).map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
+    Ok(Html(rendered))
 }
 
 /// Get all MCP services

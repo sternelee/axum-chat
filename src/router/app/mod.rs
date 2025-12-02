@@ -53,24 +53,16 @@ pub fn app_router(state: Arc<AppState>) -> Router {
 
     let providers_router = Router::new()
         .route("/", get(providers_list))
-        .route("/api", get(api_providers_list))
-        .route("/api", post(api_create_provider))
-        .route("/api/{id}", get(api_get_provider))
-        .route("/api/{id}", put(api_update_provider))
-        .route("/api/{id}", delete(api_delete_provider))
+        .route("/api", get(api_providers_list).post(api_create_provider))
+        .route("/api/{id}", get(api_get_provider).put(api_update_provider).delete(api_delete_provider))
         .route("/api/{id}/models", get(api_provider_models))
-        .with_state(state.clone())
-        .layer(axum::middleware::from_fn(auth));
+        .with_state(state.clone());
 
     let agents_router = Router::new()
         .route("/", get(agents_list))
-        .route("/api", get(api_agents_list))
-        .route("/api", post(api_create_agent))
-        .route("/api/{id}", get(api_get_agent))
-        .route("/api/{id}", put(api_update_agent))
-        .route("/api/{id}", delete(api_delete_agent))
-        .with_state(state.clone())
-        .layer(axum::middleware::from_fn(auth));
+        .route("/api", get(api_agents_list).post(api_create_agent))
+        .route("/api/{id}", get(api_get_agent).put(api_update_agent).delete(api_delete_agent))
+        .with_state(state.clone());
 
     let mcp_router = Router::new()
         .route("/", get(mcp_config_page))

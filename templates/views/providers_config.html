@@ -1,0 +1,635 @@
+<div class="container mx-auto p-4 max-w-7xl">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold mb-2">AI Providers Configuration</h1>
+    <p class="text-gray-600">Manage AI service providers, their models, and API configurations</p>
+  </div>
+
+  <!-- Quick Stats -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="stat bg-base-100 shadow-lg rounded-lg">
+      <div class="stat-figure text-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-8 h-8 stroke-current">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+        </svg>
+      </div>
+      <div class="stat-title">Total Providers</div>
+      <div class="stat-value text-primary" id="totalProviders">0</div>
+    </div>
+
+    <div class="stat bg-base-100 shadow-lg rounded-lg">
+      <div class="stat-figure text-success">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-8 h-8 stroke-current">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+      <div class="stat-title">Active Providers</div>
+      <div class="stat-value text-success" id="activeProviders">0</div>
+    </div>
+
+    <div class="stat bg-base-100 shadow-lg rounded-lg">
+      <div class="stat-figure text-info">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-8 h-8 stroke-current">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+        </svg>
+      </div>
+      <div class="stat-title">Total Models</div>
+      <div class="stat-value text-info" id="totalModels">0</div>
+    </div>
+
+    <div class="stat bg-base-100 shadow-lg rounded-lg">
+      <div class="stat-figure text-warning">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-8 h-8 stroke-current">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+        </svg>
+      </div>
+      <div class="stat-title">Provider Types</div>
+      <div class="stat-value text-warning" id="providerTypes">0</div>
+    </div>
+  </div>
+
+  <!-- Actions Bar -->
+  <div class="card bg-base-100 shadow-xl mb-6">
+    <div class="card-body">
+      <div class="flex flex-wrap justify-between items-center gap-4">
+        <div class="flex flex-wrap gap-2">
+          <button class="btn btn-primary" onclick="showCreateModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Provider
+          </button>
+          <button class="btn btn-secondary" onclick="refreshProviders()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <select class="select select-bordered select-sm" id="filterType" onchange="filterProviders()">
+            <option value="">All Types</option>
+            <option value="OpenAI">OpenAI</option>
+            <option value="Gemini">Gemini</option>
+          </select>
+          <select class="select select-bordered select-sm" id="filterStatus" onchange="filterProviders()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Providers Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="providersGrid">
+    <!-- Provider cards will be dynamically populated here -->
+  </div>
+
+  <!-- Empty State -->
+  <div id="emptyState" class="hidden text-center py-12">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+    </svg>
+    <h3 class="text-lg font-medium text-gray-900 mb-2">No providers found</h3>
+    <p class="text-gray-500 mb-4">Get started by adding your first AI provider.</p>
+    <button class="btn btn-primary" onclick="showCreateModal()">Add Provider</button>
+  </div>
+</div>
+
+<!-- Create/Edit Provider Modal -->
+<div class="modal" id="providerModal">
+  <div class="modal-box modal-wide">
+    <h3 class="font-bold text-lg mb-4" id="modalTitle">Create New Provider</h3>
+
+    <form id="providerForm" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Provider Name *</span>
+          </label>
+          <input type="text" id="providerName" class="input input-bordered w-full" required>
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Provider Type *</span>
+          </label>
+          <select id="providerType" class="select select-bordered w-full" required>
+            <option value="">Select Type</option>
+            <option value="OpenAI">OpenAI Compatible</option>
+            <option value="Gemini">Google Gemini</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Base URL *</span>
+        </label>
+        <input type="url" id="providerBaseUrl" class="input input-bordered w-full" required
+               placeholder="https://api.openai.com/v1" />
+        <label class="label">
+          <span class="label-text-alt">The API endpoint URL for the provider</span>
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">API Key *</span>
+        </label>
+        <input type="password" id="providerApiKey" class="input input-bordered w-full" required />
+        <label class="label">
+          <span class="label-text-alt">Your API key for this provider</span>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Timeout (seconds)</span>
+          </label>
+          <input type="number" id="providerTimeout" class="input input-bordered w-full" value="30" min="1" max="300">
+        </div>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Status</span>
+          </label>
+          <select id="providerStatus" class="select select-bordered w-full">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card bg-base-200">
+        <div class="card-body">
+          <h4 class="card-title text-base">Advanced Settings</h4>
+
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Custom Headers (JSON)</span>
+            </label>
+            <textarea id="providerHeaders" class="textarea textarea-bordered w-full" rows="3"
+                      placeholder='{"Authorization": "Bearer token"}'></textarea>
+            <label class="label">
+              <span class="label-text-alt">Additional HTTP headers to include in requests</span>
+            </label>
+          </div>
+
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Rate Limit (requests/minute)</span>
+            </label>
+            <input type="number" id="providerRateLimit" class="input input-bordered w-full" min="1" max="1000" placeholder="60">
+            <label class="label">
+              <span class="label-text-alt">Maximum requests per minute</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-control">
+        <label class="cursor-pointer label">
+          <input type="checkbox" id="providerValidate" class="checkbox checkbox-primary" checked>
+          <span class="label-text">Validate API connection on save</span>
+        </label>
+      </div>
+    </form>
+
+    <div class="modal-action">
+      <button class="btn btn-ghost" onclick="closeProviderModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProvider()">Save Provider</button>
+    </div>
+  </div>
+  <div class="modal-backdrop" onclick="closeProviderModal()"></div>
+</div>
+
+<!-- Models Modal -->
+<div class="modal" id="modelsModal">
+  <div class="modal-box modal-wide">
+    <h3 class="font-bold text-lg mb-4" id="modelsModalTitle">Provider Models</h3>
+
+    <div id="modelsContent" class="space-y-4">
+      <!-- Models will be loaded dynamically -->
+    </div>
+
+    <div class="modal-action">
+      <button class="btn btn-primary" onclick="closeModelsModal()">Close</button>
+    </div>
+  </div>
+  <div class="modal-backdrop" onclick="closeModelsModal()"></div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal" id="deleteModal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Delete Provider</h3>
+    <p class="py-4">Are you sure you want to delete this provider? This action cannot be undone and may affect agents using this provider.</p>
+    <div class="modal-action">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-error" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+  <div class="modal-backdrop" onclick="closeDeleteModal()"></div>
+</div>
+
+<script>
+let providers = [];
+let currentEditingProvider = null;
+let deleteProviderId = null;
+
+// Load initial data
+async function loadProviders() {
+  try {
+    const response = await fetch('/providers/api');
+    providers = await response.json();
+    renderProviders();
+    updateStats();
+    populateFilters();
+  } catch (error) {
+    console.error('Failed to load providers:', error);
+    showToast('Failed to load providers', 'error');
+  }
+}
+
+function renderProviders() {
+  const grid = document.getElementById('providersGrid');
+  const emptyState = document.getElementById('emptyState');
+
+  if (providers.length === 0) {
+    grid.classList.add('hidden');
+    emptyState.classList.remove('hidden');
+    return;
+  }
+
+  grid.classList.remove('hidden');
+  emptyState.classList.add('hidden');
+
+  grid.innerHTML = providers.map(provider => createProviderCard(provider)).join('');
+}
+
+function createProviderCard(provider) {
+  // Handle both enum values ('openai', 'gemini') and display values ('OpenAI', 'Gemini')
+  const providerType = provider.provider_type;
+  const isOpenAI = providerType === 'openai' || providerType === 'OpenAI';
+  const isGemini = providerType === 'gemini' || providerType === 'Gemini';
+
+  const typeIcon = isOpenAI ? '🤖' : (isGemini ? '🧠' : '⚙️');
+  const typeColor = isOpenAI ? 'badge-success' : (isGemini ? 'badge-warning' : 'badge-info');
+  const typeDisplay = isOpenAI ? 'OpenAI' : (isGemini ? 'Gemini' : providerType);
+
+  const statusBadge = provider.is_active
+    ? '<div class="badge badge-success">Active</div>'
+    : '<div class="badge badge-error">Inactive</div>';
+
+  return `
+    <div class="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow">
+      <div class="card-body">
+        <div class="flex justify-between items-start mb-2">
+          <div class="flex items-center">
+            <span class="text-3xl mr-3">${typeIcon}</span>
+            <div>
+              <h2 class="card-title text-lg">${provider.name}</h2>
+              <div class="badge ${typeColor}">${typeDisplay}</div>
+            </div>
+          </div>
+          ${statusBadge}
+        </div>
+
+        <p class="text-gray-600 mb-3">
+          <a href="${provider.base_url}" target="_blank" class="link link-primary text-sm">
+            ${provider.base_url}
+          </a>
+        </p>
+
+        <div class="text-sm space-y-1 mb-3">
+          <div class="flex justify-between">
+            <span class="font-semibold">Provider ID:</span>
+            <span class="badge badge-ghost badge-sm">#${provider.id}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="font-semibold">Created:</span>
+            <span class="text-xs">${new Date(provider.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+
+        <div class="card-actions justify-between">
+          <button onclick="viewModels(${provider.id}, '${provider.name}')" class="btn btn-sm btn-outline btn-info">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+            </svg>
+            Models
+          </button>
+
+          <div class="flex gap-2">
+            <button onclick="editProvider(${provider.id})" class="btn btn-sm btn-outline">Edit</button>
+            <button onclick="deleteProvider(${provider.id})" class="btn btn-sm btn-error btn-outline">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function updateStats() {
+  const totalProviders = providers.length;
+  const activeProviders = providers.filter(p => p.is_active).length;
+  const providerTypes = new Set(providers.map(p => p.provider_type)).size;
+
+  document.getElementById('totalProviders').textContent = totalProviders;
+  document.getElementById('activeProviders').textContent = activeProviders;
+  document.getElementById('providerTypes').textContent = providerTypes;
+
+  // Load total models count
+  loadTotalModelsCount();
+}
+
+async function loadTotalModelsCount() {
+  try {
+    let totalModels = 0;
+    const modelPromises = providers.map(async (provider) => {
+      try {
+        const response = await fetch(`/providers/api/${provider.id}/models`);
+        const models = await response.json();
+        return models.length;
+      } catch (error) {
+        console.error(`Failed to load models for provider ${provider.id}:`, error);
+        return 0;
+      }
+    });
+
+    const modelCounts = await Promise.all(modelPromises);
+    totalModels = modelCounts.reduce((sum, count) => sum + count, 0);
+    document.getElementById('totalModels').textContent = totalModels;
+  } catch (error) {
+    console.error('Failed to load total models count:', error);
+  }
+}
+
+function populateFilters() {
+  // Filters are hardcoded in HTML for provider types
+}
+
+function filterProviders() {
+  const type = document.getElementById('filterType').value;
+  const status = document.getElementById('filterStatus').value;
+
+  let filtered = providers;
+
+  if (type) {
+    // Filter using both display values and enum values
+    filtered = filtered.filter(p => {
+      const providerType = p.provider_type;
+      if (type === 'OpenAI') {
+        return providerType === 'OpenAI' || providerType === 'openai';
+      } else if (type === 'Gemini') {
+        return providerType === 'Gemini' || providerType === 'gemini';
+      }
+      return providerType === type;
+    });
+  }
+
+  if (status) {
+    const isActive = status === 'active';
+    filtered = filtered.filter(p => p.is_active === isActive);
+  }
+
+  // Render filtered results
+  const grid = document.getElementById('providersGrid');
+  const emptyState = document.getElementById('emptyState');
+
+  if (filtered.length === 0) {
+    grid.classList.add('hidden');
+    emptyState.classList.remove('hidden');
+    emptyState.querySelector('h3').textContent = 'No providers match the filters';
+  } else {
+    grid.classList.remove('hidden');
+    emptyState.classList.add('hidden');
+    grid.innerHTML = filtered.map(provider => createProviderCard(provider)).join('');
+  }
+}
+
+function showCreateModal() {
+  currentEditingProvider = null;
+  document.getElementById('modalTitle').textContent = 'Create New Provider';
+  document.getElementById('providerForm').reset();
+  document.getElementById('providerStatus').value = 'true';
+  document.getElementById('providerValidate').checked = true;
+  document.getElementById('providerModal').classList.add('modal-open');
+}
+
+function editProvider(id) {
+  const provider = providers.find(p => p.id === id);
+  if (!provider) return;
+
+  currentEditingProvider = provider;
+  document.getElementById('modalTitle').textContent = 'Edit Provider';
+
+  // Convert backend enum values to frontend display values
+  let providerTypeDisplay;
+  if (provider.provider_type === 'openai' || provider.provider_type === 'OpenAI') {
+    providerTypeDisplay = 'OpenAI';
+  } else if (provider.provider_type === 'gemini' || provider.provider_type === 'Gemini') {
+    providerTypeDisplay = 'Gemini';
+  } else {
+    providerTypeDisplay = provider.provider_type; // Fallback
+  }
+
+  // Populate form
+  document.getElementById('providerName').value = provider.name;
+  document.getElementById('providerType').value = providerTypeDisplay;
+  document.getElementById('providerBaseUrl').value = provider.base_url;
+  document.getElementById('providerStatus').value = provider.is_active.toString();
+  document.getElementById('providerApiKey').value = ''; // Don't populate API key for security
+
+  document.getElementById('providerModal').classList.add('modal-open');
+}
+
+async function viewModels(id, providerName) {
+  try {
+    const response = await fetch(`/providers/api/${id}/models`);
+    const models = await response.json();
+
+    document.getElementById('modelsModalTitle').textContent = `${providerName} - Models`;
+
+    const modelsContent = document.getElementById('modelsContent');
+
+    if (models.length === 0) {
+      modelsContent.innerHTML = `
+        <div class="text-center py-8">
+          <p class="text-gray-500">No models found for this provider.</p>
+        </div>
+      `;
+    } else {
+      modelsContent.innerHTML = `
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
+              <tr>
+                <th>Model Name</th>
+                <th>Display Name</th>
+                <th>Context Length</th>
+                <th>Input Price</th>
+                <th>Output Price</th>
+                <th>Capabilities</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${models.map(model => `
+                <tr>
+                  <td class="font-mono text-sm">${model.name}</td>
+                  <td>${model.display_name}</td>
+                  <td class="text-sm">${model.context_length.toLocaleString()}</td>
+                  <td class="text-sm">${model.input_price ? `$${model.input_price}/1K` : 'N/A'}</td>
+                  <td class="text-sm">${model.output_price ? `$${model.output_price}/1K` : 'N/A'}</td>
+                  <td class="text-sm">
+                    <div class="flex flex-wrap gap-1">
+                      ${model.capabilities ? JSON.parse(model.capabilities).map(cap =>
+                        `<span class="badge badge-outline badge-xs">${cap}</span>`
+                      ).join('') : 'N/A'}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="badge ${model.is_active ? 'badge-success' : 'badge-error'} badge-sm">
+                      ${model.is_active ? 'Active' : 'Inactive'}
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    document.getElementById('modelsModal').classList.add('modal-open');
+  } catch (error) {
+    console.error('Failed to load models:', error);
+    showToast('Failed to load models', 'error');
+  }
+}
+
+async function saveProvider() {
+  // Convert frontend provider_type values to backend enum values
+  const providerTypeValue = document.getElementById('providerType').value;
+  let providerTypeEnum;
+
+  if (providerTypeValue === 'OpenAI') {
+    providerTypeEnum = 'openai';
+  } else if (providerTypeValue === 'Gemini') {
+    providerTypeEnum = 'gemini';
+  } else {
+    showToast('Please select a valid provider type', 'error');
+    return;
+  }
+
+  // Only send the fields that backend expects
+  const formData = {
+    name: document.getElementById('providerName').value,
+    provider_type: providerTypeEnum,
+    base_url: document.getElementById('providerBaseUrl').value,
+    api_key: document.getElementById('providerApiKey').value
+  };
+
+  const shouldValidate = document.getElementById('providerValidate').checked;
+
+  try {
+    const url = currentEditingProvider ? `/providers/api/${currentEditingProvider.id}` : '/providers/api';
+    const method = currentEditingProvider ? 'PUT' : 'POST';
+
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData)
+    });
+
+    if (response.ok) {
+      showToast(`Provider ${currentEditingProvider ? 'updated' : 'created'} successfully`, 'success');
+      closeProviderModal();
+      loadProviders();
+    } else {
+      const errorText = await response.text();
+      console.error('Server response:', errorText);
+      throw new Error(`Failed to save provider: ${errorText}`);
+    }
+  } catch (error) {
+    console.error('Error saving provider:', error);
+    showToast('Failed to save provider: ' + error.message, 'error');
+  }
+}
+
+function deleteProvider(id) {
+  deleteProviderId = id;
+  document.getElementById('deleteModal').classList.add('modal-open');
+}
+
+async function confirmDelete() {
+  if (!deleteProviderId) return;
+
+  try {
+    const response = await fetch(`/providers/api/${deleteProviderId}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      showToast('Provider deleted successfully', 'success');
+      closeDeleteModal();
+      loadProviders();
+    } else {
+      throw new Error('Failed to delete provider');
+    }
+  } catch (error) {
+    console.error('Error deleting provider:', error);
+    showToast('Failed to delete provider: ' + error.message, 'error');
+  }
+}
+
+function closeProviderModal() {
+  document.getElementById('providerModal').classList.remove('modal-open');
+}
+
+function closeModelsModal() {
+  document.getElementById('modelsModal').classList.remove('modal-open');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('modal-open');
+  deleteProviderId = null;
+}
+
+function refreshProviders() {
+  loadProviders();
+}
+
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast toast-top toast-end`;
+  toast.innerHTML = `
+    <div class="alert alert-${type}">
+      <span>${message}</span>
+    </div>
+  `;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+  loadProviders();
+});
+</script>
+
+<style>
+.modal-wide {
+  max-width: 800px;
+}
+</style>
