@@ -72,6 +72,10 @@ pub async fn api_create_agent(
     State(state): State<Arc<crate::AppState>>,
     Json(request): Json<CreateAgentRequest>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, String)> {
+    if let Err(e) = request.validate() {
+        return Err((StatusCode::BAD_REQUEST, e));
+    }
+    
     // TODO: Get user ID from authentication
     let user_id = 1; // Placeholder
 

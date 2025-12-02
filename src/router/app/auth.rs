@@ -12,6 +12,7 @@ use tower_cookies::{Cookie, Cookies};
 use std::sync::Arc;
 
 use crate::{AppState, User};
+use crate::utils::{hash_password, verify_password, PasswordError};
 
 pub async fn login(State(state): State<Arc<AppState>>) -> Html<String> {
     let mut context = Context::new();
@@ -52,13 +53,32 @@ pub struct LogIn {
     password: String,
 }
 
+impl LogIn {
+    fn validate(&self) -> Result<(), &'static str> {
+        if self.email.is_empty() {
+            return Err("Email cannot be empty");
+        }
+        
+        if self.password.is_empty() {
+            return Err("Password cannot be empty");
+        }
+        
+        if !self.email.contains('@') {
+            return Err("Invalid email format");
+        }
+        
+        Ok(())
+    }
+}
+
 #[axum::debug_handler]
 pub async fn login_form(
     cookies: Cookies,
     state: State<Arc<AppState>>,
     Form(log_in): Form<LogIn>,
 ) -> Result<Redirect, LogInError> {
-    // Verify password
+    log_in.validate().map_err(|_| LogInError::InvalidCredentials)?;
+    
     let user = sqlx::query_as!(
         User,
         "SELECT users.*, settings.openai_api_key FROM users LEFT JOIN settings ON settings.user_id=users.id WHERE users.email = $1",
@@ -66,21 +86,21 @@ pub async fn login_form(
     ).fetch_one(&*state.pool).await
     .map_err(|_| LogInError::InvalidCredentials)?;
 
-    if user.password != log_in.password {
-        return Err(LogInError::InvalidCredentials);
+    match verify_password(&log_in.password, &user.password) {
+        Ok(true) => {
+            let cookie = Cookie::build(("rust-gpt-session", user.id.to_string()))
+                .path("/")
+                .http_only(true)
+                .build();
+            cookies.add(cookie);
+            Ok(Redirect::to("/"))
+        }
+        Ok(false) => Err(LogInError::InvalidCredentials),
+        Err(_) => Err(LogInError::InvalidCredentials),
     }
-
-    let cookie = Cookie::build(("rust-gpt-session", user.id.to_string()))
-        .path("/")
-        .http_only(true)
-        .build();
-    cookies.add(cookie);
-
-    Ok(Redirect::to("/"))
 }
 
 pub async fn signup(State(state): State<Arc<AppState>>) -> Html<String> {
-    // TODO: Hash password
     let mut context = Context::new();
     context.insert("name", "World");
     let home = state.tera.render("views/signup.html", &context).unwrap();
@@ -118,28 +138,57 @@ pub struct SignUp {
     password_confirmation: String,
 }
 
+impl SignUp {
+    fn validate(&self) -> Result<(), &'static str> {
+        if self.email.is_empty() {
+            return Err("Email cannot be empty");
+        }
+        
+        if !self.email.contains('@') {
+            return Err("Invalid email format");
+        }
+        
+        if self.email.len() > 255 {
+            return Err("Email is too long");
+        }
+        
+        if self.password.len() < 8 {
+            return Err("Password must be at least 8 characters long");
+        }
+        
+        if self.password.len() > 255 {
+            return Err("Password is too long");
+        }
+        
+        Ok(())
+    }
+}
+
 #[axum::debug_handler]
 pub async fn form_signup(
     state: State<Arc<AppState>>,
     Form(sign_up): Form<SignUp>,
 ) -> Result<Redirect, SignUpError> {
+    sign_up.validate().map_err(|_| SignUpError::DatabaseError("Validation failed".to_string()))?;
+    
     if sign_up.password != sign_up.password_confirmation {
         return Err(SignUpError::PasswordMismatch);
     }
 
-    // insert into db
+    let hashed_password = hash_password(&sign_up.password)
+        .map_err(|_| SignUpError::DatabaseError("Failed to hash password".to_string()))?;
+
     match sqlx::query!(
         "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id",
         sign_up.email,
-        sign_up.password
+        hashed_password
     )
     .fetch_one(&*state.pool)
     .await
     {
         Ok(_) => Ok(Redirect::to("/login")),
         Err(_e) => {
-            // Handle database error, for example, a unique constraint violation
-            Err(SignUpError::DatabaseError("Dat".to_string()))
+            Err(SignUpError::DatabaseError("Email already registered".to_string()))
         }
     }
 }

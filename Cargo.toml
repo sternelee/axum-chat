@@ -28,6 +28,8 @@ markdown = "1"
 regex = "1.12.2"
 html-escape = "0.2.13"
 rmcp = { version = "0.9", features = ["transport-io", "client", "transport-child-process"] }
+bcrypt = "0.16"
+thiserror = "1.0"
 
 [profile.release]
 opt-level = 3
