@@ -105,6 +105,36 @@ pub struct CreateProviderRequest {
     pub api_key: String,
 }
 
+impl CreateProviderRequest {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.name.is_empty() {
+            return Err("Provider name cannot be empty".to_string());
+        }
+        
+        if self.name.len() > 100 {
+            return Err("Provider name must be 100 characters or less".to_string());
+        }
+        
+        if self.base_url.is_empty() {
+            return Err("Base URL cannot be empty".to_string());
+        }
+        
+        if !self.base_url.starts_with("http://") && !self.base_url.starts_with("https://") {
+            return Err("Base URL must start with http:// or https://".to_string());
+        }
+        
+        if self.api_key.is_empty() {
+            return Err("API key cannot be empty".to_string());
+        }
+        
+        if self.api_key.len() < 10 {
+            return Err("API key seems too short".to_string());
+        }
+        
+        Ok(())
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateProviderRequest {
     pub name: Option<String>,
@@ -138,6 +168,52 @@ pub struct CreateAgentRequest {
     pub icon: Option<String>,
     pub category: Option<String>,
     pub public: Option<bool>,
+}
+
+impl CreateAgentRequest {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.name.is_empty() {
+            return Err("Agent name cannot be empty".to_string());
+        }
+        
+        if self.name.len() > 100 {
+            return Err("Agent name must be 100 characters or less".to_string());
+        }
+        
+        if self.provider_id <= 0 {
+            return Err("Invalid provider ID".to_string());
+        }
+        
+        if self.model_name.is_empty() {
+            return Err("Model name cannot be empty".to_string());
+        }
+        
+        if let Some(top_p) = self.top_p {
+            if top_p < 0.0 || top_p > 1.0 {
+                return Err("top_p must be between 0.0 and 1.0".to_string());
+            }
+        }
+        
+        if let Some(temperature) = self.temperature {
+            if temperature < 0.0 || temperature > 2.0 {
+                return Err("temperature must be between 0.0 and 2.0".to_string());
+            }
+        }
+        
+        if let Some(max_tokens) = self.max_tokens {
+            if max_tokens <= 0 || max_tokens > 100000 {
+                return Err("max_tokens must be between 1 and 100000".to_string());
+            }
+        }
+        
+        if let Some(max_context) = self.max_context {
+            if max_context <= 0 || max_context > 1000000 {
+                return Err("max_context must be between 1 and 1000000".to_string());
+            }
+        }
+        
+        Ok(())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

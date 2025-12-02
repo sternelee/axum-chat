@@ -55,6 +55,10 @@ pub async fn api_create_provider(
     State(state): State<Arc<crate::AppState>>,
     Json(request): Json<CreateProviderRequest>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, String)> {
+    if let Err(e) = request.validate() {
+        return Err((StatusCode::BAD_REQUEST, e));
+    }
+    
     match state.chat_repo.create_provider(request).await {
         Ok(id) => Ok((
             StatusCode::CREATED,

@@ -16,7 +16,7 @@ use auth::{form_signup, login, login_form, logout, signup};
 mod blog;
 use blog::{blog, blog_by_slug};
 mod settings;
-use settings::{settings, settings_openai_api_key};
+use settings::{settings, settings_openai_api_key, change_password};
 mod error;
 use error::error;
 mod providers;
@@ -49,6 +49,7 @@ pub fn app_router(state: Arc<AppState>) -> Router {
 
     let settings_router = Router::new()
         .route("/", get(settings).post(settings_openai_api_key))
+        .route("/password", post(change_password))
         .layer(axum::middleware::from_fn(auth));
 
     let providers_router = Router::new()

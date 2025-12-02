@@ -1,4 +1,23 @@
 // Utility functions used across multiple modules
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum PasswordError {
+    #[error("Failed to hash password: {0}")]
+    HashingError(String),
+    #[error("Invalid password")]
+    InvalidPassword,
+}
+
+pub fn hash_password(password: &str) -> Result<String, PasswordError> {
+    bcrypt::hash(password, bcrypt::DEFAULT_COST)
+        .map_err(|e| PasswordError::HashingError(e.to_string()))
+}
+
+pub fn verify_password(password: &str, hash: &str) -> Result<bool, PasswordError> {
+    bcrypt::verify(password, hash)
+        .map_err(|e| PasswordError::HashingError(e.to_string()))
+}
 
 // Enhanced function to add DaisyUI classes and basic code styling
 pub fn add_daisyui_classes(html: &str) -> String {

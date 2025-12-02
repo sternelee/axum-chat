@@ -198,12 +198,32 @@ pub struct NewChat {
     model: String,
 }
 
+impl NewChat {
+    fn validate(&self) -> Result<(), &'static str> {
+        if self.message.trim().is_empty() {
+            return Err("Message cannot be empty");
+        }
+        
+        if self.message.len() > 10000 {
+            return Err("Message is too long (maximum 10000 characters)");
+        }
+        
+        if self.model.trim().is_empty() {
+            return Err("Model must be selected");
+        }
+        
+        Ok(())
+    }
+}
+
 #[axum::debug_handler]
 pub async fn new_chat(
     State(state): State<Arc<AppState>>,
     Extension(current_user): Extension<Option<User>>,
     Form(new_chat): Form<NewChat>,
 ) -> Result<Response<String>, ChatError> {
+    new_chat.validate().map_err(|_| ChatError::Other)?;
+    
     let current_user = current_user.unwrap();
 
     let chat_id = state
@@ -291,6 +311,20 @@ pub struct ChatAddMessage {
     message: String,
 }
 
+impl ChatAddMessage {
+    fn validate(&self) -> Result<(), &'static str> {
+        if self.message.trim().is_empty() {
+            return Err("Message cannot be empty");
+        }
+        
+        if self.message.len() > 10000 {
+            return Err("Message is too long (maximum 10000 characters)");
+        }
+        
+        Ok(())
+    }
+}
+
 #[axum::debug_handler]
 pub async fn chat_add_message(
     Path(chat_id): Path<i64>,
@@ -298,6 +332,8 @@ pub async fn chat_add_message(
     Extension(_current_user): Extension<Option<User>>,
     Form(chat_add_message): Form<ChatAddMessage>,
 ) -> Result<Html<String>, ChatError> {
+    chat_add_message.validate().map_err(|_| ChatError::Other)?;
+    
     let message = chat_add_message.message;
     state
         .chat_repo
