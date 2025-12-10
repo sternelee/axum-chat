@@ -14,7 +14,7 @@ use tokio_stream::wrappers::ReceiverStream; // This brings the necessary stream 
 use std::sync::Arc;
 
 use crate::{
-    ai::stream::{generate_sse_stream, GenerationEvent},
+    ai::stream::{generate_sse_stream, GenerationEvent, StreamServiceType},
     data::model::{ChatMessagePair, AgentWithProvider},
     utils::markdown_to_html,
     AppState, User,
@@ -377,7 +377,7 @@ pub async fn chat_generate(
     // Spawn a task that generates SSE events and sends them into the channel
     tokio::spawn(async move {
         // Call the new agent-based function to start generating events
-        if let Err(e) = generate_sse_stream(&agent, chat_message_pairs, sender).await {
+        if let Err(e) = generate_sse_stream(&agent, chat_message_pairs, sender, StreamServiceType::Chat).await {
             eprintln!("Error generating SSE stream: {:?}", e);
         }
     });

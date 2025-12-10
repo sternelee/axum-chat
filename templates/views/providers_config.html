@@ -70,7 +70,16 @@
           <select class="select select-bordered select-sm" id="filterType" onchange="filterProviders()">
             <option value="">All Types</option>
             <option value="OpenAI">OpenAI</option>
-            <option value="Gemini">Gemini</option>
+            <option value="OpenRouter">OpenRouter</option>
+            <option value="DeepSeek">DeepSeek</option>
+            <option value="Azure OpenAI">Azure OpenAI</option>
+            <option value="Anthropic Claude">Anthropic Claude</option>
+            <option value="Cohere">Cohere</option>
+            <option value="Groq">Groq</option>
+            <option value="Mistral AI">Mistral AI</option>
+            <option value="Google Gemini">Google Gemini</option>
+            <option value="Hugging Face">Hugging Face</option>
+            <option value="xAI Grok">xAI Grok</option>
           </select>
           <select class="select select-bordered select-sm" id="filterStatus" onchange="filterProviders()">
             <option value="">All Status</option>
@@ -116,10 +125,19 @@
           <label class="label">
             <span class="label-text">Provider Type *</span>
           </label>
-          <select id="providerType" class="select select-bordered w-full" required>
+          <select id="providerType" class="select select-bordered w-full" required onchange="updateCapabilities()">
             <option value="">Select Type</option>
-            <option value="OpenAI">OpenAI Compatible</option>
-            <option value="Gemini">Google Gemini</option>
+            <option value="OpenAI">OpenAI</option>
+            <option value="OpenRouter">OpenRouter</option>
+            <option value="DeepSeek">DeepSeek</option>
+            <option value="Azure OpenAI">Azure OpenAI</option>
+            <option value="Anthropic Claude">Anthropic Claude</option>
+            <option value="Cohere">Cohere</option>
+            <option value="Groq">Groq</option>
+            <option value="Mistral AI">Mistral AI</option>
+            <option value="Google Gemini">Google Gemini</option>
+            <option value="Hugging Face">Hugging Face</option>
+            <option value="xAI Grok">xAI Grok</option>
           </select>
         </div>
       </div>
@@ -143,6 +161,112 @@
         <label class="label">
           <span class="label-text-alt">Your API key for this provider</span>
         </label>
+      </div>
+
+      <!-- Capabilities Section -->
+      <div class="card bg-base-200">
+        <div class="card-body">
+          <h4 class="card-title text-base">Service Capabilities</h4>
+          <p class="text-sm text-gray-600 mb-4">Select which services this provider supports. These will be auto-populated based on the provider type, but you can override them.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="cursor-pointer label">
+                <input type="checkbox" id="supportsChat" class="checkbox checkbox-primary">
+                <span class="label-text">Chat Services</span>
+              </label>
+              <label class="label">
+                <span class="label-text-alt">AI conversation and text generation</span>
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="cursor-pointer label">
+                <input type="checkbox" id="supportsEmbed" class="checkbox checkbox-primary">
+                <span class="label-text">Embedding Services</span>
+              </label>
+              <label class="label">
+                <span class="label-text-alt">Text embedding and vector generation</span>
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="cursor-pointer label">
+                <input type="checkbox" id="supportsImage" class="checkbox checkbox-primary">
+                <span class="label-text">Image Generation</span>
+              </label>
+              <label class="label">
+                <span class="label-text-alt">AI image creation and generation</span>
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="cursor-pointer label">
+                <input type="checkbox" id="supportsStreaming" class="checkbox checkbox-primary" checked>
+                <span class="label-text">Streaming Support</span>
+              </label>
+              <label class="label">
+                <span class="label-text-alt">Real-time response streaming</span>
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="cursor-pointer label">
+                <input type="checkbox" id="supportsTools" class="checkbox checkbox-primary" checked>
+                <span class="label-text">Tool Support</span>
+              </label>
+              <label class="label">
+                <span class="label-text-alt">Function calling and tool use</span>
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="cursor-pointer label">
+                <input type="checkbox" id="supportsImages" class="checkbox checkbox-primary">
+                <span class="label-text">Image Input</span>
+              </label>
+              <label class="label">
+                <span class="label-text-alt">Process images in chat requests</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Endpoint Configuration -->
+          <div class="mt-6 space-y-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Chat Endpoint</span>
+              </label>
+              <input type="text" id="chatEndpoint" class="input input-bordered w-full"
+                     placeholder="/chat/completions" />
+              <label class="label">
+                <span class="label-text-alt">API endpoint for chat services (relative to base URL)</span>
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Embedding Endpoint</span>
+              </label>
+              <input type="text" id="embedEndpoint" class="input input-bordered w-full"
+                     placeholder="/embeddings" />
+              <label class="label">
+                <span class="label-text-alt">API endpoint for embedding services (relative to base URL)</span>
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Image Generation Endpoint</span>
+              </label>
+              <input type="text" id="imageEndpoint" class="input input-bordered w-full"
+                     placeholder="/images/generations" />
+              <label class="label">
+                <span class="label-text-alt">API endpoint for image generation services (relative to base URL)</span>
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -272,18 +396,40 @@ function renderProviders() {
 }
 
 function createProviderCard(provider) {
-  // Handle both enum values ('openai', 'gemini') and display values ('OpenAI', 'Gemini')
+  // Handle the new capability-based provider types
   const providerType = provider.provider_type;
-  const isOpenAI = providerType === 'openai' || providerType === 'OpenAI';
-  const isGemini = providerType === 'gemini' || providerType === 'Gemini';
 
-  const typeIcon = isOpenAI ? '🤖' : (isGemini ? '🧠' : '⚙️');
-  const typeColor = isOpenAI ? 'badge-success' : (isGemini ? 'badge-warning' : 'badge-info');
-  const typeDisplay = isOpenAI ? 'OpenAI' : (isGemini ? 'Gemini' : providerType);
+  const providerConfig = {
+    'openai': { icon: '🤖', color: 'badge-success', display: 'OpenAI' },
+    'openrouter': { icon: '🌐', color: 'badge-primary', display: 'OpenRouter' },
+    'deepseek': { icon: '🔍', color: 'badge-info', display: 'DeepSeek' },
+    'azure': { icon: '☁️', color: 'badge-info', display: 'Azure OpenAI' },
+    'anthropic': { icon: '🧠', color: 'badge-accent', display: 'Anthropic Claude' },
+    'cohere': { icon: '💭', color: 'badge-secondary', display: 'Cohere' },
+    'groq': { icon: '⚡', color: 'badge-warning', display: 'Groq' },
+    'mistral': { icon: '🌊', color: 'badge-info', display: 'Mistral AI' },
+    'gemini': { icon: '🔮', color: 'badge-warning', display: 'Google Gemini' },
+    'huggingface': { icon: '🤗', color: 'badge-accent', display: 'Hugging Face' },
+    'xai': { icon: '🚀', color: 'badge-secondary', display: 'xAI Grok' }
+  };
+
+  const config = providerConfig[providerType.toLowerCase()] || { icon: '⚙️', color: 'badge-ghost', display: providerType };
+  const typeIcon = config.icon;
+  const typeColor = config.color;
+  const typeDisplay = config.display;
 
   const statusBadge = provider.is_active
     ? '<div class="badge badge-success">Active</div>'
     : '<div class="badge badge-error">Inactive</div>';
+
+  // Create capability badges
+  const capabilities = [];
+  if (provider.supports_chat) capabilities.push('<span class="badge badge-outline badge-xs">Chat</span>');
+  if (provider.supports_embed) capabilities.push('<span class="badge badge-outline badge-xs">Embed</span>');
+  if (provider.supports_image) capabilities.push('<span class="badge badge-outline badge-xs">Image</span>');
+  if (provider.supports_streaming) capabilities.push('<span class="badge badge-outline badge-xs">Stream</span>');
+  if (provider.supports_tools) capabilities.push('<span class="badge badge-outline badge-xs">Tools</span>');
+  if (provider.supports_images) capabilities.push('<span class="badge badge-outline badge-xs">Vision</span>');
 
   return `
     <div class="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow">
@@ -297,6 +443,10 @@ function createProviderCard(provider) {
             </div>
           </div>
           ${statusBadge}
+        </div>
+
+        <div class="flex flex-wrap gap-1 mb-3">
+          ${capabilities.join('')}
         </div>
 
         <p class="text-gray-600 mb-3">
@@ -380,16 +530,25 @@ function filterProviders() {
   let filtered = providers;
 
   if (type) {
-    // Filter using both display values and enum values
-    filtered = filtered.filter(p => {
-      const providerType = p.provider_type;
-      if (type === 'OpenAI') {
-        return providerType === 'OpenAI' || providerType === 'openai';
-      } else if (type === 'Gemini') {
-        return providerType === 'Gemini' || providerType === 'gemini';
-      }
-      return providerType === type;
-    });
+    // Filter using display values mapped to enum values
+    const typeMapping = {
+      'OpenAI': 'openai',
+      'OpenRouter': 'openrouter',
+      'DeepSeek': 'deepseek',
+      'Azure OpenAI': 'azure',
+      'Anthropic Claude': 'anthropic',
+      'Cohere': 'cohere',
+      'Groq': 'groq',
+      'Mistral AI': 'mistral',
+      'Google Gemini': 'gemini',
+      'Hugging Face': 'huggingface',
+      'xAI Grok': 'xai'
+    };
+
+    const enumValue = typeMapping[type];
+    if (enumValue) {
+      filtered = filtered.filter(p => p.provider_type.toLowerCase() === enumValue);
+    }
   }
 
   if (status) {
@@ -429,14 +588,20 @@ function editProvider(id) {
   document.getElementById('modalTitle').textContent = 'Edit Provider';
 
   // Convert backend enum values to frontend display values
-  let providerTypeDisplay;
-  if (provider.provider_type === 'openai' || provider.provider_type === 'OpenAI') {
-    providerTypeDisplay = 'OpenAI';
-  } else if (provider.provider_type === 'gemini' || provider.provider_type === 'Gemini') {
-    providerTypeDisplay = 'Gemini';
-  } else {
-    providerTypeDisplay = provider.provider_type; // Fallback
-  }
+  const providerTypeMap = {
+    'openai': 'OpenAI',
+    'openrouter': 'OpenRouter',
+    'deepseek': 'DeepSeek',
+    'azure': 'Azure OpenAI',
+    'anthropic': 'Anthropic Claude',
+    'cohere': 'Cohere',
+    'groq': 'Groq',
+    'mistral': 'Mistral AI',
+    'gemini': 'Google Gemini',
+    'huggingface': 'Hugging Face',
+    'xai': 'xAI Grok'
+  };
+  const providerTypeDisplay = providerTypeMap[provider.provider_type.toLowerCase()] || provider.provider_type;
 
   // Populate form
   document.getElementById('providerName').value = provider.name;
@@ -444,6 +609,19 @@ function editProvider(id) {
   document.getElementById('providerBaseUrl').value = provider.base_url;
   document.getElementById('providerStatus').value = provider.is_active.toString();
   document.getElementById('providerApiKey').value = ''; // Don't populate API key for security
+
+  // Populate capabilities
+  document.getElementById('supportsChat').checked = provider.supports_chat || false;
+  document.getElementById('supportsEmbed').checked = provider.supports_embed || false;
+  document.getElementById('supportsImage').checked = provider.supports_image || false;
+  document.getElementById('supportsStreaming').checked = provider.supports_streaming || false;
+  document.getElementById('supportsTools').checked = provider.supports_tools || false;
+  document.getElementById('supportsImages').checked = provider.supports_images || false;
+
+  // Populate endpoints
+  document.getElementById('chatEndpoint').value = provider.chat_endpoint || '';
+  document.getElementById('embedEndpoint').value = provider.embed_endpoint || '';
+  document.getElementById('imageEndpoint').value = provider.image_endpoint || '';
 
   document.getElementById('providerModal').classList.add('modal-open');
 }
@@ -516,23 +694,45 @@ async function viewModels(id, providerName) {
 async function saveProvider() {
   // Convert frontend provider_type values to backend enum values
   const providerTypeValue = document.getElementById('providerType').value;
-  let providerTypeEnum;
+  const providerTypeMap = {
+    'OpenAI': 'openai',
+    'OpenRouter': 'openrouter',
+    'DeepSeek': 'deepseek',
+    'Azure OpenAI': 'azure',
+    'Anthropic Claude': 'anthropic',
+    'Cohere': 'cohere',
+    'Groq': 'groq',
+    'Mistral AI': 'mistral',
+    'Google Gemini': 'gemini',
+    'Hugging Face': 'huggingface',
+    'xAI Grok': 'xai'
+  };
 
-  if (providerTypeValue === 'OpenAI') {
-    providerTypeEnum = 'openai';
-  } else if (providerTypeValue === 'Gemini') {
-    providerTypeEnum = 'gemini';
-  } else {
+  const providerTypeEnum = providerTypeMap[providerTypeValue];
+  if (!providerTypeEnum) {
     showToast('Please select a valid provider type', 'error');
     return;
   }
 
-  // Only send the fields that backend expects
+  // Build form data with all new capability fields
   const formData = {
     name: document.getElementById('providerName').value,
     provider_type: providerTypeEnum,
     base_url: document.getElementById('providerBaseUrl').value,
-    api_key: document.getElementById('providerApiKey').value
+    api_key: document.getElementById('providerApiKey').value,
+    // Capabilities
+    supports_chat: document.getElementById('supportsChat').checked,
+    supports_embed: document.getElementById('supportsEmbed').checked,
+    supports_image: document.getElementById('supportsImage').checked,
+    supports_streaming: document.getElementById('supportsStreaming').checked,
+    supports_tools: document.getElementById('supportsTools').checked,
+    supports_images: document.getElementById('supportsImages').checked,
+    // Endpoints (optional)
+    chat_endpoint: document.getElementById('chatEndpoint').value || null,
+    embed_endpoint: document.getElementById('embedEndpoint').value || null,
+    image_endpoint: document.getElementById('imageEndpoint').value || null,
+    // Status
+    is_active: document.getElementById('providerStatus').value === 'true'
   };
 
   const shouldValidate = document.getElementById('providerValidate').checked;
@@ -601,6 +801,88 @@ function closeModelsModal() {
 function closeDeleteModal() {
   document.getElementById('deleteModal').classList.remove('modal-open');
   deleteProviderId = null;
+}
+
+function updateCapabilities() {
+  const providerType = document.getElementById('providerType').value;
+  const baseUrlInput = document.getElementById('providerBaseUrl');
+
+  const providerDefaults = {
+    'OpenAI': {
+      baseUrl: 'https://api.openai.com/v1',
+      capabilities: { chat: true, embed: true, image: true, streaming: true, tools: true, images: true },
+      endpoints: { chat: '/chat/completions', embed: '/embeddings', image: '/images/generations' }
+    },
+    'OpenRouter': {
+      baseUrl: 'https://openrouter.ai/api/v1',
+      capabilities: { chat: true, embed: true, image: true, streaming: true, tools: true, images: true },
+      endpoints: { chat: '/chat/completions', embed: '/embeddings', image: '/images/generations' }
+    },
+    'DeepSeek': {
+      baseUrl: 'https://api.deepseek.com/v1',
+      capabilities: { chat: true, embed: true, image: false, streaming: true, tools: true, images: false },
+      endpoints: { chat: '/chat/completions', embed: '/embeddings', image: null }
+    },
+    'Azure OpenAI': {
+      baseUrl: 'https://your-resource.openai.azure.com/openai/deployments/your-deployment',
+      capabilities: { chat: true, embed: true, image: true, streaming: true, tools: true, images: true },
+      endpoints: { chat: '/chat/completions?api-version=2024-02-15-preview', embed: '/embeddings?api-version=2024-02-15-preview', image: '/images/generations?api-version=2024-02-15-preview' }
+    },
+    'Anthropic Claude': {
+      baseUrl: 'https://api.anthropic.com/v1',
+      capabilities: { chat: true, embed: false, image: false, streaming: true, tools: false, images: false },
+      endpoints: { chat: '/messages', embed: null, image: null }
+    },
+    'Cohere': {
+      baseUrl: 'https://api.cohere.ai/v1',
+      capabilities: { chat: true, embed: true, image: false, streaming: true, tools: false, images: false },
+      endpoints: { chat: '/chat', embed: '/embed', image: null }
+    },
+    'Groq': {
+      baseUrl: 'https://api.groq.com/openai/v1',
+      capabilities: { chat: true, embed: false, image: false, streaming: true, tools: true, images: false },
+      endpoints: { chat: '/chat/completions', embed: null, image: null }
+    },
+    'Mistral AI': {
+      baseUrl: 'https://api.mistral.ai/v1',
+      capabilities: { chat: true, embed: true, image: false, streaming: true, tools: false, images: false },
+      endpoints: { chat: '/chat/completions', embed: '/embeddings', image: null }
+    },
+    'Google Gemini': {
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/',
+      capabilities: { chat: true, embed: true, image: false, streaming: true, tools: true, images: true },
+      endpoints: { chat: '/models/{model}:generateContent', embed: '/models/{model}:embedContent', image: null }
+    },
+    'Hugging Face': {
+      baseUrl: 'https://api-inference.huggingface.co/models',
+      capabilities: { chat: true, embed: true, image: false, streaming: true, tools: false, images: false },
+      endpoints: { chat: '/models/{model}/v1/chat/completions', embed: '/pipeline/feature-extraction', image: null }
+    },
+    'xAI Grok': {
+      baseUrl: 'https://api.x.ai/v1',
+      capabilities: { chat: true, embed: false, image: false, streaming: true, tools: true, images: false },
+      endpoints: { chat: '/chat/completions', embed: null, image: null }
+    }
+  };
+
+  const defaults = providerDefaults[providerType];
+  if (defaults) {
+    // Update base URL
+    baseUrlInput.value = defaults.baseUrl;
+
+    // Update capability checkboxes
+    document.getElementById('supportsChat').checked = defaults.capabilities.chat;
+    document.getElementById('supportsEmbed').checked = defaults.capabilities.embed;
+    document.getElementById('supportsImage').checked = defaults.capabilities.image;
+    document.getElementById('supportsStreaming').checked = defaults.capabilities.streaming;
+    document.getElementById('supportsTools').checked = defaults.capabilities.tools;
+    document.getElementById('supportsImages').checked = defaults.capabilities.images;
+
+    // Update endpoint fields
+    document.getElementById('chatEndpoint').value = defaults.endpoints.chat || '';
+    document.getElementById('embedEndpoint').value = defaults.endpoints.embed || '';
+    document.getElementById('imageEndpoint').value = defaults.endpoints.image || '';
+  }
 }
 
 function refreshProviders() {

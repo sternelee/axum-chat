@@ -124,6 +124,134 @@ struct GeminiThoughtContent {
     thought: String,
 }
 
+// Anthropic API structures
+#[derive(Serialize, Deserialize, Debug)]
+struct AnthropicMessage {
+    role: String,
+    content: Vec<AnthropicContent>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct AnthropicContent {
+    r#type: String,
+    text: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct AnthropicStreamRequest {
+    model: String,
+    messages: Vec<AnthropicMessage>,
+    max_tokens: i32,
+    temperature: f64,
+    stream: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct AnthropicStreamResponse {
+    r#type: String,
+    delta: Option<AnthropicDelta>,
+    message: Option<AnthropicMessage>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct AnthropicDelta {
+    r#type: String,
+    text: String,
+    stop_reason: Option<String>,
+}
+
+// Cohere API structures
+#[derive(Serialize, Deserialize, Debug)]
+struct CohereStreamRequest {
+    model: String,
+    message: String,
+    chat_history: Vec<CohereMessage>,
+    temperature: f64,
+    max_tokens: i32,
+    stream: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct CohereMessage {
+    role: String,
+    message: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct CohereStreamResponse {
+    text: String,
+    finish_reason: String,
+    generation_id: String,
+}
+
+// Hugging Face API structures
+#[derive(Serialize, Deserialize, Debug)]
+struct HuggingFaceStreamRequest {
+    inputs: String,
+    parameters: HuggingFaceParameters,
+    stream: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct HuggingFaceParameters {
+    max_new_tokens: Option<i32>,
+    temperature: Option<f64>,
+    top_p: Option<f64>,
+    return_full_text: Option<bool>,
+}
+
+// Image generation structures
+#[derive(Serialize, Deserialize, Debug)]
+struct ImageGenerationRequest {
+    prompt: String,
+    n: Option<i32>,
+    size: Option<String>,
+    quality: Option<String>,
+    model: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ImageGenerationResponse {
+    created: i64,
+    data: Vec<ImageData>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ImageData {
+    url: String,
+    revised_prompt: Option<String>,
+}
+
+// Embedding structures
+#[derive(Serialize, Deserialize, Debug)]
+struct EmbeddingRequest {
+    model: String,
+    input: String,
+    encoding_format: Option<String>,
+    dimensions: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct EmbeddingResponse {
+    object: String,
+    data: Vec<EmbeddingData>,
+    model: String,
+    usage: EmbeddingUsage,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct EmbeddingData {
+    embedding: Vec<f64>,
+    index: i64,
+    object: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct EmbeddingUsage {
+    prompt_tokens: i32,
+    total_tokens: i32,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct GeminiGenerateContentRequest {
     contents: Vec<GeminiContent>,
@@ -202,22 +330,48 @@ pub async fn list_engines(
 ) -> Result<Vec<Model>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
     let url = match provider_type {
-        ProviderType::OpenAI => format!("{}/models", base_url),
+        // OpenAI-compatible providers
+        ProviderType::OpenAI | ProviderType::OpenRouter | ProviderType::DeepSeek |
+        ProviderType::AzureOpenAI | ProviderType::Groq | ProviderType::MistralAI | ProviderType::XAI => {
+            format!("{}/models", base_url)
+        }
         ProviderType::Gemini => format!("{}models?key={}", base_url, api_key),
+        ProviderType::Anthropic => format!("{}/messages/batches", base_url), // Anthropic doesn't have models endpoint
+        ProviderType::Cohere => format!("{}/models", base_url),
+        ProviderType::HuggingFace => format!("{}models", base_url),
     };
 
     let mut request = client.get(&url);
 
-    // Only add Authorization header for OpenAI-compatible providers
-    if matches!(provider_type, ProviderType::OpenAI) {
-        let auth_header = HeaderValue::from_str(&format!("Bearer {}", api_key))?;
-        request = request.header(AUTHORIZATION, auth_header);
+    // Add Authorization header for providers that need it
+    match provider_type {
+        ProviderType::OpenAI | ProviderType::OpenRouter | ProviderType::DeepSeek |
+        ProviderType::AzureOpenAI | ProviderType::Groq | ProviderType::MistralAI |
+        ProviderType::XAI | ProviderType::Cohere => {
+            let auth_header = HeaderValue::from_str(&format!("Bearer {}", api_key))?;
+            request = request.header(AUTHORIZATION, auth_header);
+        }
+        ProviderType::Anthropic => {
+            let auth_header = HeaderValue::from_str(&format!("Bearer {}", api_key))?;
+            request = request.header(AUTHORIZATION, auth_header)
+                .header("anthropic-version", "2023-06-01");
+        }
+        ProviderType::HuggingFace => {
+            let auth_header = HeaderValue::from_str(&format!("Bearer {}", api_key))?;
+            request = request.header(AUTHORIZATION, auth_header);
+        }
+        ProviderType::Gemini => {
+            // Gemini uses API key as query parameter, handled above
+        }
     }
 
     let response = request.send().await?;
 
     match provider_type {
-        ProviderType::OpenAI => {
+        // OpenAI-compatible providers return standard ModelList
+        ProviderType::OpenAI | ProviderType::OpenRouter | ProviderType::DeepSeek |
+        ProviderType::AzureOpenAI | ProviderType::Groq | ProviderType::MistralAI |
+        ProviderType::XAI | ProviderType::Cohere => {
             let res: ModelList = response.json().await?;
             Ok(res.data)
         }
@@ -241,6 +395,48 @@ pub async fn list_engines(
             }
             Ok(models)
         }
+        ProviderType::Anthropic => {
+            // Anthropic doesn't have a public models endpoint, return known models
+            Ok(vec![
+                Model {
+                    id: "claude-3-5-sonnet-20241022".to_string(),
+                    object: "model".to_string(),
+                    created: chrono::Utc::now().timestamp(),
+                    owned_by: "anthropic".to_string(),
+                },
+                Model {
+                    id: "claude-3-5-haiku-20241022".to_string(),
+                    object: "model".to_string(),
+                    created: chrono::Utc::now().timestamp(),
+                    owned_by: "anthropic".to_string(),
+                },
+                Model {
+                    id: "claude-3-opus-20240229".to_string(),
+                    object: "model".to_string(),
+                    created: chrono::Utc::now().timestamp(),
+                    owned_by: "anthropic".to_string(),
+                },
+            ])
+        }
+        ProviderType::HuggingFace => {
+            // Hugging Face returns different structure
+            let hf_response: Value = response.json().await?;
+            let mut models = Vec::new();
+
+            if let Some(models_array) = hf_response.as_array() {
+                for model in models_array {
+                    if let Some(model_id) = model["id"].as_str() {
+                        models.push(Model {
+                            id: model_id.to_string(),
+                            object: "model".to_string(),
+                            created: chrono::Utc::now().timestamp(),
+                            owned_by: "huggingface".to_string(),
+                        });
+                    }
+                }
+            }
+            Ok(models)
+        }
     }
 }
 
@@ -249,19 +445,67 @@ pub async fn generate_sse_stream(
     agent: &AgentWithProvider,
     messages: Vec<ChatMessagePair>,
     sender: mpsc::Sender<Result<GenerationEvent, Error>>,
+    service_type: StreamServiceType,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    match agent.provider.provider_type {
-        ProviderType::OpenAI => {
-            generate_openai_stream(agent, messages, sender).await
+    match service_type {
+        StreamServiceType::Chat => {
+            if !agent.provider.supports_chat {
+                return Err("Provider does not support chat services".into());
+            }
+            generate_chat_stream(agent, messages, sender).await
         }
-        ProviderType::Gemini => {
-            generate_gemini_stream(agent, messages, sender).await
+        StreamServiceType::Embedding => {
+            if !agent.provider.supports_embed {
+                return Err("Provider does not support embedding services".into());
+            }
+            generate_embeddings(agent, messages, sender).await
+        }
+        StreamServiceType::ImageGeneration => {
+            if !agent.provider.supports_image {
+                return Err("Provider does not support image generation services".into());
+            }
+            generate_image_generation(agent, messages, sender).await
         }
     }
 }
 
-/// Generate streaming response for OpenAI-compatible providers
-async fn generate_openai_stream(
+#[derive(Debug, Clone, PartialEq)]
+pub enum StreamServiceType {
+    Chat,
+    Embedding,
+    ImageGeneration,
+}
+
+/// Generate streaming response for chat services
+async fn generate_chat_stream(
+    agent: &AgentWithProvider,
+    messages: Vec<ChatMessagePair>,
+    sender: mpsc::Sender<Result<GenerationEvent, Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match agent.provider.provider_type {
+        // OpenAI-compatible chat providers
+        ProviderType::OpenAI | ProviderType::OpenRouter | ProviderType::DeepSeek |
+        ProviderType::AzureOpenAI | ProviderType::Groq | ProviderType::MistralAI | ProviderType::XAI => {
+            generate_openai_compatible_stream(agent, messages, sender).await
+        }
+        // Specialized chat providers
+        ProviderType::Gemini => {
+            generate_gemini_stream(agent, messages, sender).await
+        }
+        ProviderType::Anthropic => {
+            generate_anthropic_stream(agent, messages, sender).await
+        }
+        ProviderType::Cohere => {
+            generate_cohere_stream(agent, messages, sender).await
+        }
+        ProviderType::HuggingFace => {
+            generate_huggingface_stream(agent, messages, sender).await
+        }
+    }
+}
+
+/// Generate streaming response for OpenAI-compatible providers (OpenAI, OpenRouter, DeepSeek, XAI)
+async fn generate_openai_compatible_stream(
     agent: &AgentWithProvider,
     messages: Vec<ChatMessagePair>,
     sender: mpsc::Sender<Result<GenerationEvent, Error>>,
@@ -345,26 +589,72 @@ async fn generate_openai_stream(
         request_body["tool_choice"] = json!("auto");
     }
 
-    println!("OpenAI Request: {}", request_body);
+    println!("{} Request: {:?}", agent.provider.provider_type, request_body);
 
     let client = reqwest::Client::new();
-    let request = client
+    let mut request = client
         .post(&url)
-        .header(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", api_key))?,
-        )
-        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
-        .body(request_body.to_string());
+        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+    // Add provider-specific headers
+    match agent.provider.provider_type {
+        ProviderType::OpenAI | ProviderType::DeepSeek | ProviderType::XAI => {
+            request = request.header(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", api_key))?,
+            );
+        }
+        ProviderType::OpenRouter => {
+            request = request.header(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", api_key))?,
+            );
+            // OpenRouter-specific header for model routing
+            request = request.header(
+                "HTTP-Referer",
+                HeaderValue::from_str("https://github.com/sternelee/axum-chat")?,
+            );
+            request = request.header(
+                "X-Title",
+                HeaderValue::from_str("Axum Chat")?,
+            );
+        }
+        ProviderType::AzureOpenAI => {
+            request = request.header(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", api_key))?,
+            );
+            // Azure-specific headers
+            request = request.header(
+                "api-key",
+                HeaderValue::from_str(api_key)?,
+            );
+        }
+        ProviderType::Groq => {
+            request = request.header(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", api_key))?,
+            );
+        }
+        ProviderType::MistralAI => {
+            request = request.header(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", api_key))?,
+            );
+        }
+        _ => {}
+    }
+
+    request = request.body(request_body.to_string());
 
     let mut stream = ReqwestEventSource::new(request)?;
 
     while let Some(event) = stream.next().await {
         match event {
-            Ok(ReqwestEvent::Open) => println!("OpenAI Connection Open!"),
+            Ok(ReqwestEvent::Open) => println!("{} Connection Open!", agent.provider.provider_type),
             Ok(ReqwestEvent::Message(message)) => {
                 if message.data.trim() == "[DONE]" {
-                    println!("OpenAI Stream completed.");
+                    println!("{} Stream completed.", agent.provider.provider_type);
                     stream.close();
                     send_end_event(&sender).await;
                     break;
@@ -442,7 +732,7 @@ async fn generate_openai_stream(
                 }
             }
             Err(err) => {
-                println!("OpenAI Error: {}", err);
+                println!("{} Error: {}", agent.provider.provider_type, err);
                 stream.close();
                 if sender.send(Err(axum::Error::new(err))).await.is_err() {
                     break;
@@ -914,7 +1204,16 @@ mod tests {
                 name: "test_provider".to_string(),
                 provider_type: ProviderType::OpenAI,
                 base_url: "https://api.openai.com/v1".to_string(),
+                chat_endpoint: Some("/chat/completions".to_string()),
+                embed_endpoint: Some("/embeddings".to_string()),
+                image_endpoint: Some("/images/generations".to_string()),
                 api_key_encrypted: "test_key".to_string(),
+                supports_chat: true,
+                supports_embed: false,
+                supports_image: false,
+                supports_streaming: true,
+                supports_tools: true,
+                supports_images: false,
                 is_active: true,
                 created_at: chrono::Utc::now().to_rfc3339(),
                 updated_at: chrono::Utc::now().to_rfc3339(),
@@ -926,6 +1225,7 @@ mod tests {
             image: false,
             tool: false,
             tools: vec![],
+            allow_tools: vec![],
             system_prompt: Some("You are a helpful assistant.".to_string()),
             top_p: 1.0,
             max_context: 4096,
@@ -939,8 +1239,8 @@ mod tests {
             category: "general".to_string(),
             public: false,
             is_active: true,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            updated_at: chrono::Utc::now().to_rfc3339(),
         };
 
         let (_sender, receiver) = mpsc::channel::<Result<GenerationEvent, axum::Error>>(10);
@@ -958,7 +1258,7 @@ mod tests {
         }];
 
         tokio::spawn(async move {
-            let _ = generate_openai_stream(&test_agent, pairs, _sender).await;
+            let _ = generate_chat_stream(&test_agent, pairs, _sender).await;
         });
 
         while let Some(event) = stream.next().await {
@@ -984,7 +1284,16 @@ mod tests {
                 name: "gemini_provider".to_string(),
                 provider_type: ProviderType::Gemini,
                 base_url: "https://generativelanguage.googleapis.com/v1beta/".to_string(),
+                chat_endpoint: Some("/models/{model}:generateContent".to_string()),
+                embed_endpoint: Some("/models/{model}:embedContent".to_string()),
+                image_endpoint: None,
                 api_key_encrypted: "test_gemini_key".to_string(),
+                supports_chat: true,
+                supports_embed: false,
+                supports_image: false,
+                supports_streaming: true,
+                supports_tools: true,
+                supports_images: false,
                 is_active: true,
                 created_at: chrono::Utc::now().to_rfc3339(),
                 updated_at: chrono::Utc::now().to_rfc3339(),
@@ -996,6 +1305,7 @@ mod tests {
             image: false,
             tool: false,
             tools: vec![],
+            allow_tools: vec![],
             system_prompt: Some("You are a helpful assistant.".to_string()),
             top_p: 1.0,
             max_context: 4096,
@@ -1009,8 +1319,8 @@ mod tests {
             category: "general".to_string(),
             public: false,
             is_active: true,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            updated_at: chrono::Utc::now().to_rfc3339(),
         };
 
         let (_sender, receiver) = mpsc::channel::<Result<GenerationEvent, axum::Error>>(10);
@@ -1040,4 +1350,377 @@ mod tests {
             }
         }
     }
+}
+
+/// Generate streaming response for Anthropic Claude
+async fn generate_anthropic_stream(
+    agent: &AgentWithProvider,
+    messages: Vec<ChatMessagePair>,
+    sender: mpsc::Sender<Result<GenerationEvent, Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let api_key = &agent.provider.api_key_encrypted;
+    let base_url = &agent.provider.base_url;
+    let model = &agent.model_name;
+
+    let url = format!("{}/messages", base_url);
+
+    // Convert messages to Anthropic format
+    let mut anthropic_messages = Vec::new();
+
+    // Add conversation history
+    for msg in &messages {
+        anthropic_messages.push(AnthropicMessage {
+            role: "user".to_string(),
+            content: vec![AnthropicContent {
+                r#type: "text".to_string(),
+                text: Some(msg.human_message.clone()),
+            }],
+        });
+
+        if let Some(ai_message) = &msg.ai_message {
+            anthropic_messages.push(AnthropicMessage {
+                role: "assistant".to_string(),
+                content: vec![AnthropicContent {
+                    r#type: "text".to_string(),
+                    text: Some(ai_message.clone()),
+                }],
+            });
+        }
+    }
+
+    // Build request body
+    let request_body = AnthropicStreamRequest {
+        model: model.clone(),
+        messages: anthropic_messages,
+        max_tokens: agent.max_tokens as i32,
+        temperature: agent.temperature,
+        stream: true,
+    };
+
+    let client = reqwest::Client::new();
+    let request = client
+        .post(&url)
+        .header(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", api_key))?)
+        .header("anthropic-version", "2023-06-01")
+        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+        .body(serde_json::to_string(&request_body)?);
+
+    let mut stream = ReqwestEventSource::new(request)?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            Ok(ReqwestEvent::Open) => println!("Anthropic Connection Open!"),
+            Ok(ReqwestEvent::Message(message)) => {
+                if let Ok(response) = serde_json::from_str::<AnthropicStreamResponse>(&message.data) {
+                    if let Some(delta) = response.delta {
+                        if sender.send(Ok(GenerationEvent::Text(delta.text))).await.is_err() {
+                            break;
+                        }
+
+                        if let Some(stop_reason) = delta.stop_reason {
+                            println!("Anthropic Stream completed with reason: {}", stop_reason);
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                println!("Anthropic Error: {}", err);
+                if sender.send(Err(axum::Error::new(err))).await.is_err() {
+                    break;
+                }
+            }
+        }
+    }
+
+    send_end_event(&sender).await;
+    Ok(())
+}
+
+/// Generate streaming response for Cohere
+async fn generate_cohere_stream(
+    agent: &AgentWithProvider,
+    messages: Vec<ChatMessagePair>,
+    sender: mpsc::Sender<Result<GenerationEvent, Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let api_key = &agent.provider.api_key_encrypted;
+    let base_url = &agent.provider.base_url;
+    let model = &agent.model_name;
+
+    let url = format!("{}/chat", base_url);
+
+    // Convert messages to Cohere format
+    let mut chat_history = Vec::new();
+    let mut last_message = String::new();
+
+    for msg in &messages {
+        chat_history.push(CohereMessage {
+            role: "USER".to_string(),
+            message: msg.human_message.clone(),
+        });
+
+        if let Some(ai_message) = &msg.ai_message {
+            chat_history.push(CohereMessage {
+                role: "CHATBOT".to_string(),
+                message: ai_message.clone(),
+            });
+        }
+
+        last_message = msg.human_message.clone();
+    }
+
+    // Build request body
+    let request_body = CohereStreamRequest {
+        model: model.clone(),
+        message: last_message,
+        chat_history,
+        temperature: agent.temperature,
+        max_tokens: agent.max_tokens as i32,
+        stream: true,
+    };
+
+    let client = reqwest::Client::new();
+    let request = client
+        .post(&url)
+        .header(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", api_key))?)
+        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+        .body(serde_json::to_string(&request_body)?);
+
+    let mut stream = ReqwestEventSource::new(request)?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            Ok(ReqwestEvent::Open) => println!("Cohere Connection Open!"),
+            Ok(ReqwestEvent::Message(message)) => {
+                if let Ok(response) = serde_json::from_str::<CohereStreamResponse>(&message.data) {
+                    if sender.send(Ok(GenerationEvent::Text(response.text))).await.is_err() {
+                        break;
+                    }
+
+                    if response.finish_reason == "MAX_TOKENS" || response.finish_reason == "COMPLETE" {
+                        println!("Cohere Stream completed with reason: {}", response.finish_reason);
+                        break;
+                    }
+                }
+            }
+            Err(err) => {
+                println!("Cohere Error: {}", err);
+                if sender.send(Err(axum::Error::new(err))).await.is_err() {
+                    break;
+                }
+            }
+        }
+    }
+
+    send_end_event(&sender).await;
+    Ok(())
+}
+
+/// Generate streaming response for Hugging Face
+async fn generate_huggingface_stream(
+    agent: &AgentWithProvider,
+    messages: Vec<ChatMessagePair>,
+    sender: mpsc::Sender<Result<GenerationEvent, Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let api_key = &agent.provider.api_key_encrypted;
+    let base_url = &agent.provider.base_url;
+    let model = &agent.model_name;
+
+    let url = format!("{}/models/{}/generate_stream", base_url, model);
+
+    // Combine messages into a single prompt for Hugging Face
+    let mut prompt = String::new();
+    for msg in &messages {
+        prompt.push_str(&format!("Human: {}\n\nAssistant: ", msg.human_message));
+        if let Some(ai_message) = &msg.ai_message {
+            prompt.push_str(&format!("{}\n\n", ai_message));
+        }
+    }
+    prompt.push_str("Assistant: ");
+
+    // Build request body
+    let request_body = HuggingFaceStreamRequest {
+        inputs: prompt,
+        parameters: HuggingFaceParameters {
+            max_new_tokens: Some(agent.max_tokens as i32),
+            temperature: Some(agent.temperature),
+            top_p: Some(agent.top_p),
+            return_full_text: Some(false),
+        },
+        stream: true,
+    };
+
+    let client = reqwest::Client::new();
+    let request = client
+        .post(&url)
+        .header(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", api_key))?)
+        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+        .body(serde_json::to_string(&request_body)?);
+
+    let mut stream = ReqwestEventSource::new(request)?;
+
+    while let Some(event) = stream.next().await {
+        match event {
+            Ok(ReqwestEvent::Open) => println!("HuggingFace Connection Open!"),
+            Ok(ReqwestEvent::Message(message)) => {
+                if let Ok(response) = serde_json::from_str::<Value>(&message.data) {
+                    if let Some(token) = response["token"]["text"].as_str() {
+                        if sender.send(Ok(GenerationEvent::Text(token.to_string()))).await.is_err() {
+                            break;
+                        }
+                    }
+
+                    // Check for completion
+                    if response.get("generated_text").is_some() {
+                        println!("HuggingFace Stream completed");
+                        break;
+                    }
+                }
+            }
+            Err(err) => {
+                println!("HuggingFace Error: {}", err);
+                if sender.send(Err(axum::Error::new(err))).await.is_err() {
+                    break;
+                }
+            }
+        }
+    }
+
+    send_end_event(&sender).await;
+    Ok(())
+}
+
+/// Generate images using image generation providers
+async fn generate_image_generation(
+    agent: &AgentWithProvider,
+    messages: Vec<ChatMessagePair>,
+    sender: mpsc::Sender<Result<GenerationEvent, Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let api_key = &agent.provider.api_key_encrypted;
+    let base_url = &agent.provider.base_url;
+    let model = &agent.model_name;
+
+    // Get the last user message as the image prompt
+    let prompt = messages.last()
+        .map(|msg| msg.human_message.clone())
+        .unwrap_or_default();
+
+    let (url, request_body) = match agent.provider.provider_type {
+        ProviderType::OpenAI | ProviderType::OpenRouter | ProviderType::AzureOpenAI => {
+            let url = format!("{}/images/generations", base_url);
+            let body = ImageGenerationRequest {
+                prompt: prompt.clone(),
+                n: Some(1),
+                size: Some("1024x1024".to_string()),
+                quality: Some("standard".to_string()),
+                model: model.clone(),
+            };
+            (url, serde_json::to_value(body)?)
+        }
+        _ => return Err("Unsupported image generation provider".into()),
+    };
+
+    let client = reqwest::Client::new();
+    let mut request = client
+        .post(&url)
+        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+
+    // Add appropriate authentication
+    request = request.header(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {}", api_key))?,
+    );
+
+    let response = request.body(request_body.to_string()).send().await?;
+    let image_response: ImageGenerationResponse = response.json().await?;
+
+    // Send generated image URLs as text events
+    for image_data in image_response.data {
+        let image_html = format!(
+            r#"<img src="{}" alt="Generated image" style="max-width: 100%; height: auto; border-radius: 8px;">"#,
+            image_data.url
+        );
+
+        if sender.send(Ok(GenerationEvent::Text(image_html))).await.is_err() {
+            break;
+        }
+    }
+
+    send_end_event(&sender).await;
+    Ok(())
+}
+
+/// Generate embeddings using embedding providers
+async fn generate_embeddings(
+    agent: &AgentWithProvider,
+    messages: Vec<ChatMessagePair>,
+    sender: mpsc::Sender<Result<GenerationEvent, Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let api_key = &agent.provider.api_key_encrypted;
+    let base_url = &agent.provider.base_url;
+    let model = &agent.model_name;
+
+    // Get the last user message for embedding
+    let text = messages.last()
+        .map(|msg| msg.human_message.clone())
+        .unwrap_or_default();
+
+    let (url, request_body) = match agent.provider.provider_type {
+        ProviderType::OpenAI | ProviderType::OpenRouter | ProviderType::AzureOpenAI => {
+            let url = format!("{}/embeddings", base_url);
+            let body = EmbeddingRequest {
+                model: model.clone(),
+                input: text.clone(),
+                encoding_format: Some("float".to_string()),
+                dimensions: Some(1536),
+            };
+            (url, serde_json::to_value(body)?)
+        }
+        ProviderType::Cohere => {
+            let url = format!("{}/embed", base_url);
+            let body = EmbeddingRequest {
+                model: model.clone(),
+                input: text.clone(),
+                encoding_format: None,
+                dimensions: Some(4096),
+            };
+            (url, serde_json::to_value(body)?)
+        }
+        ProviderType::HuggingFace => {
+            let url = format!("{}/pipeline/feature-extraction", base_url);
+            let body = EmbeddingRequest {
+                model: model.clone(),
+                input: text.clone(),
+                encoding_format: None,
+                dimensions: None,
+            };
+            (url, serde_json::to_value(body)?)
+        }
+        _ => return Err("Unsupported embedding provider".into()),
+    };
+
+    let client = reqwest::Client::new();
+    let mut request = client
+        .post(&url)
+        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+        .header(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", api_key))?)
+        .body(request_body.to_string());
+
+    let response = request.send().await?;
+    let embedding_response: EmbeddingResponse = response.json().await?;
+
+    // Send embedding information as a text event
+    let embedding_info = format!(
+        "Generated embedding with {} dimensions for model '{}'. Input: '{}'",
+        embedding_response.data[0].embedding.len(),
+        embedding_response.model,
+        text
+    );
+
+    if sender.send(Ok(GenerationEvent::Text(embedding_info))).await.is_err() {
+        return Err("Failed to send embedding info".into());
+    }
+
+    send_end_event(&sender).await;
+    Ok(())
 }

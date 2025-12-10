@@ -184,7 +184,16 @@ impl ChatRepository {
                 name,
                 provider_type,
                 base_url,
+                chat_endpoint,
+                embed_endpoint,
+                image_endpoint,
                 api_key_encrypted,
+                supports_chat,
+                supports_embed,
+                supports_image,
+                supports_streaming,
+                supports_tools,
+                supports_images,
                 is_active,
                 datetime(created_at) as created_at,
                 datetime(updated_at) as updated_at
@@ -210,7 +219,16 @@ impl ChatRepository {
                 name,
                 provider_type,
                 base_url,
+                chat_endpoint,
+                embed_endpoint,
+                image_endpoint,
                 api_key_encrypted,
+                supports_chat,
+                supports_embed,
+                supports_image,
+                supports_streaming,
+                supports_tools,
+                supports_images,
                 is_active,
                 datetime(created_at) as created_at,
                 datetime(updated_at) as updated_at
@@ -235,7 +253,16 @@ impl ChatRepository {
                 name,
                 provider_type,
                 base_url,
+                chat_endpoint,
+                embed_endpoint,
+                image_endpoint,
                 api_key_encrypted,
+                supports_chat,
+                supports_embed,
+                supports_image,
+                supports_streaming,
+                supports_tools,
+                supports_images,
                 is_active,
                 datetime(created_at) as created_at,
                 datetime(updated_at) as updated_at
@@ -253,13 +280,50 @@ impl ChatRepository {
     }
 
     pub async fn create_provider(&self, request: CreateProviderRequest) -> Result<i64, DatabaseError> {
+        // Get default endpoints and capabilities from provider type
+        let default_endpoints = request.provider_type.default_endpoints();
+
+        let chat_endpoint = request.chat_endpoint.or(default_endpoints.chat);
+        let embed_endpoint = request.embed_endpoint.or(default_endpoints.embed);
+        let image_endpoint = request.image_endpoint.or(default_endpoints.image);
+
+        // Use provided capabilities or defaults based on provider type
+        let supports_chat = request.supports_chat.unwrap_or(chat_endpoint.is_some());
+        let supports_embed = request.supports_embed.unwrap_or(embed_endpoint.is_some());
+        let supports_image = request.supports_image.unwrap_or(image_endpoint.is_some());
+        let supports_streaming = request.supports_streaming.unwrap_or(true);
+        let supports_tools = request.supports_tools.unwrap_or(true);
+        let supports_images = request.supports_images.unwrap_or(
+            matches!(request.provider_type,
+                crate::data::model::ProviderType::OpenAI |
+                crate::data::model::ProviderType::OpenRouter |
+                crate::data::model::ProviderType::AzureOpenAI |
+                crate::data::model::ProviderType::Gemini
+            )
+        );
+
         let result = self.db.execute(
-            "INSERT INTO providers (name, provider_type, base_url, api_key_encrypted) VALUES (?, ?, ?, ?)",
+            r#"
+            INSERT INTO providers (
+                name, provider_type, base_url, chat_endpoint, embed_endpoint, image_endpoint,
+                api_key_encrypted, supports_chat, supports_embed, supports_image,
+                supports_streaming, supports_tools, supports_images
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
             vec![
                 serde_json::Value::String(request.name),
                 serde_json::Value::String(request.provider_type.to_string()),
                 serde_json::Value::String(request.base_url),
+                serde_json::Value::String(chat_endpoint.unwrap_or_default()),
+                serde_json::Value::String(embed_endpoint.unwrap_or_default()),
+                serde_json::Value::String(image_endpoint.unwrap_or_default()),
                 serde_json::Value::String(request.api_key),
+                serde_json::Value::Bool(supports_chat),
+                serde_json::Value::Bool(supports_embed),
+                serde_json::Value::Bool(supports_image),
+                serde_json::Value::Bool(supports_streaming),
+                serde_json::Value::Bool(supports_tools),
+                serde_json::Value::Bool(supports_images),
             ],
         ).await?;
 
@@ -287,9 +351,45 @@ impl ChatRepository {
             updates.push("base_url = ?");
             params.push(serde_json::Value::String(base_url.clone()));
         }
+        if let Some(chat_endpoint) = &request.chat_endpoint {
+            updates.push("chat_endpoint = ?");
+            params.push(serde_json::Value::String(chat_endpoint.clone()));
+        }
+        if let Some(embed_endpoint) = &request.embed_endpoint {
+            updates.push("embed_endpoint = ?");
+            params.push(serde_json::Value::String(embed_endpoint.clone()));
+        }
+        if let Some(image_endpoint) = &request.image_endpoint {
+            updates.push("image_endpoint = ?");
+            params.push(serde_json::Value::String(image_endpoint.clone()));
+        }
         if let Some(api_key) = &request.api_key {
             updates.push("api_key_encrypted = ?");
             params.push(serde_json::Value::String(api_key.clone()));
+        }
+        if let Some(supports_chat) = request.supports_chat {
+            updates.push("supports_chat = ?");
+            params.push(serde_json::Value::Bool(supports_chat));
+        }
+        if let Some(supports_embed) = request.supports_embed {
+            updates.push("supports_embed = ?");
+            params.push(serde_json::Value::Bool(supports_embed));
+        }
+        if let Some(supports_image) = request.supports_image {
+            updates.push("supports_image = ?");
+            params.push(serde_json::Value::Bool(supports_image));
+        }
+        if let Some(supports_streaming) = request.supports_streaming {
+            updates.push("supports_streaming = ?");
+            params.push(serde_json::Value::Bool(supports_streaming));
+        }
+        if let Some(supports_tools) = request.supports_tools {
+            updates.push("supports_tools = ?");
+            params.push(serde_json::Value::Bool(supports_tools));
+        }
+        if let Some(supports_images) = request.supports_images {
+            updates.push("supports_images = ?");
+            params.push(serde_json::Value::Bool(supports_images));
         }
         if let Some(is_active) = request.is_active {
             updates.push("is_active = ?");
