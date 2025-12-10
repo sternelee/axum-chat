@@ -1,0 +1,593 @@
+{% extends "components/base.html" %}
+
+{% block title %}MCP UI - Interactive Tool Interface{% endblock %}
+
+{% block extra_head %}
+<style>
+.mcp-ui-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.mcp-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.mcp-header h1 {
+    color: #1f2937;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.mcp-header p {
+    color: #6b7280;
+    font-size: 1.125rem;
+}
+
+.services-selector {
+    margin-bottom: 2rem;
+}
+
+.service-select {
+    width: 100%;
+    max-width: 400px;
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    background-color: white;
+    font-size: 1rem;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.tool-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.tool-card:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.tool-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.tool-name {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 1.125rem;
+}
+
+.tool-service {
+    background: #3b82f6;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.tool-description {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.tool-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-primary {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #2563eb;
+}
+
+.btn-secondary {
+    background-color: #6b7280;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #4b5563;
+}
+
+.tool-interface-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    position: relative;
+    background-color: white;
+    margin: 5% auto;
+    padding: 2rem;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 12px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+}
+
+.mcp-tool-interface {
+    max-width: 100%;
+}
+
+.tool-header h3 {
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.tool-description {
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+}
+
+.parameter-form {
+    background-color: #f9fafb;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.parameter-field {
+    margin-bottom: 1rem;
+}
+
+.parameter-field label {
+    display: block;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.25rem;
+}
+
+.parameter-field input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.parameter-field .param-description {
+    display: block;
+    color: #6b7280;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.tool-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.tool-output {
+    background-color: #1f2937;
+    color: #f9fafb;
+    padding: 1rem;
+    border-radius: 8px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.mcp-tool-execution {
+    text-align: center;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.execution-status {
+    color: #6b7280;
+    margin-bottom: 1rem;
+}
+
+.result-content {
+    background-color: #1f2937;
+    color: #f9fafb;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: left;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6b7280;
+}
+
+.empty-state svg {
+    width: 4rem;
+    height: 4rem;
+    margin: 0 auto 1rem;
+    color: #d1d5db;
+}
+
+@media (max-width: 768px) {
+    .mcp-ui-container {
+        padding: 1rem;
+    }
+
+    .tools-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .tool-card {
+        padding: 1rem;
+    }
+
+    .modal-content {
+        margin: 10% auto;
+        width: 95%;
+        padding: 1.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mcp-ui-container">
+    <div class="mcp-header">
+        <h1>🛠️ MCP Interactive UI</h1>
+        <p>Explore and interact with Model Context Protocol tools in a user-friendly interface</p>
+    </div>
+
+    {% if services %}
+    <div class="services-selector">
+        <select class="service-select" id="service-filter" onchange="filterTools()">
+            <option value="">All Services</option>
+            {% for service in services %}
+            <option value="{{ service.id }}">{{ service.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    {% if tools %}
+    <div class="tools-grid" id="tools-grid">
+        {% for tool in tools %}
+        <div class="tool-card" data-service-id="{{ tool.service_id }}" data-tool-name="{{ tool.function.name }}">
+            <div class="tool-header">
+                <h3 class="tool-name">{{ tool.function.name }}</h3>
+                <span class="tool-service">{{ tool.service_id }}</span>
+            </div>
+
+            <p class="tool-description">
+                {{ tool.function.description | default(value="No description available") }}
+            </p>
+
+            <div class="tool-actions">
+                <button class="btn btn-primary" onclick="openToolInterface('{{ tool.service_id }}', '{{ tool.function.name }}')">
+                    ⚡ Execute
+                </button>
+                <button class="btn btn-secondary" onclick="previewTool('{{ tool.service_id }}', '{{ tool.function.name }}')">
+                    👁️ Preview
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+        </svg>
+        <h3>No MCP Tools Available</h3>
+        <p>Configure MCP services to see interactive tools here.</p>
+        <a href="/mcp" class="btn btn-primary">Configure MCP Services</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Tool Interface Modal -->
+<div id="tool-modal" class="tool-interface-modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeToolInterface()">&times;</button>
+        <div id="tool-interface-content">
+            <!-- Tool interface will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentExecutionId = null;
+let executionInterval = null;
+
+function filterTools() {
+    const serviceFilter = document.getElementById('service-filter');
+    const toolCards = document.querySelectorAll('.tool-card');
+
+    toolCards.forEach(card => {
+        const serviceId = card.dataset.serviceId;
+        if (serviceFilter.value === '' || serviceId === serviceFilter.value) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+async function openToolInterface(serviceId, toolName) {
+    const modal = document.getElementById('tool-modal');
+    const content = document.getElementById('tool-interface-content');
+
+    // Show loading state
+    content.innerHTML = '<div style="text-align: center; padding: 2rem;">Loading tool interface...</div>';
+    modal.style.display = 'block';
+
+    try {
+        const response = await fetch(`/mcp/ui/resource/${serviceId}/${toolName}`);
+        if (response.ok) {
+            const data = await response.json();
+            content.innerHTML = data.content.html;
+
+            // Add event listeners
+            const executeBtn = content.querySelector('.execute-tool');
+            const previewBtn = content.querySelector('.preview-tool');
+
+            if (executeBtn) {
+                executeBtn.addEventListener('click', () => executeTool(serviceId, toolName));
+            }
+
+            if (previewBtn) {
+                previewBtn.addEventListener('click', () => previewTool(serviceId, toolName));
+            }
+        } else {
+            throw new Error('Failed to load tool interface');
+        }
+    } catch (error) {
+        console.error('Error loading tool interface:', error);
+        content.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ef4444;">Failed to load tool interface</div>';
+    }
+}
+
+function closeToolInterface() {
+    const modal = document.getElementById('tool-modal');
+    modal.style.display = 'none';
+
+    // Clear any execution monitoring
+    if (executionInterval) {
+        clearInterval(executionInterval);
+        executionInterval = null;
+    }
+    currentExecutionId = null;
+}
+
+async function previewTool(serviceId, toolName) {
+    const modal = document.getElementById('tool-modal');
+    const content = document.getElementById('tool-interface-content');
+
+    // Show preview
+    const previewContent = `
+        <div class="tool-preview">
+            <h3>Preview: ${toolName}</h3>
+            <div class="tool-info">
+                <p><strong>Service:</strong> ${serviceId}</p>
+                <p><strong>Tool:</strong> ${toolName}</p>
+                <p>This is a preview of the tool interface. Click "Execute Tool" to run the actual tool.</p>
+            </div>
+        </div>
+    `;
+
+    content.innerHTML = previewContent;
+    modal.style.display = 'block';
+}
+
+async function executeTool(serviceId, toolName) {
+    const content = document.getElementById('tool-interface-content');
+    const outputDiv = content.querySelector('.tool-output');
+
+    // Collect parameters
+    const inputs = content.querySelectorAll('input[name]');
+    const arguments = {};
+
+    inputs.forEach(input => {
+        const name = input.name;
+        let value = input.value;
+
+        // Handle different input types
+        if (input.type === 'checkbox') {
+            value = input.checked;
+        } else if (input.type === 'number') {
+            value = parseFloat(value) || 0;
+        }
+
+        if (value !== '') {
+            arguments[name] = value;
+        }
+    });
+
+    // Show execution UI
+    content.innerHTML = `
+        <div class="mcp-tool-execution">
+            <h3>Executing: ${toolName}</h3>
+            <div class="execution-status">
+                <div class="spinner"></div>
+                <p>Running tool...</p>
+            </div>
+            <div class="execution-result" style="display: none;">
+                <h4>Result:</h4>
+                <pre class="result-content"></pre>
+            </div>
+        </div>
+    `;
+
+    try {
+        const response = await fetch('/mcp/ui/execute', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                service_id: serviceId,
+                tool_name: toolName,
+                arguments: arguments,
+                timeout_ms: 30000
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            currentExecutionId = data.execution_id;
+
+            // Start monitoring execution status
+            monitorExecutionStatus(data.execution_id, content);
+        } else {
+            throw new Error('Failed to start tool execution');
+        }
+    } catch (error) {
+        console.error('Error executing tool:', error);
+        content.innerHTML = `
+            <div class="tool-execution-error">
+                <h3>❌ Execution Failed</h3>
+                <p>${error.message}</p>
+                <button class="btn btn-secondary" onclick="openToolInterface('${serviceId}', '${toolName}')">Try Again</button>
+            </div>
+        `;
+    }
+}
+
+async function monitorExecutionStatus(executionId, content) {
+    const maxAttempts = 30; // 30 seconds with 1-second intervals
+    let attempts = 0;
+
+    executionInterval = setInterval(async () => {
+        attempts++;
+
+        try {
+            const response = await fetch(`/mcp/ui/execution/${executionId}`);
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(executionInterval);
+                    showExecutionResult(data, content);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(executionInterval);
+                    showExecutionTimeout(content);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking execution status:', error);
+            if (attempts >= maxAttempts) {
+                clearInterval(executionInterval);
+                showExecutionTimeout(content);
+            }
+        }
+    }, 1000);
+}
+
+function showExecutionResult(data, content) {
+    const statusDiv = content.querySelector('.execution-status');
+    const resultDiv = content.querySelector('.execution-result');
+
+    statusDiv.innerHTML = `
+        <div style="color: ${data.status === 'completed' ? '#10b981' : '#ef4444'};">
+            ${data.status === 'completed' ? '✅' : '❌'} Execution ${data.status}
+        </div>
+    `;
+
+    resultDiv.style.display = 'block';
+    resultDiv.querySelector('.result-content').textContent =
+        JSON.stringify(data.result, null, 2);
+}
+
+function showExecutionTimeout(content) {
+    content.innerHTML = `
+        <div class="tool-execution-timeout">
+            <h3>⏰ Execution Timeout</h3>
+            <p>The tool execution took too long to complete. Please try again or check the tool configuration.</p>
+            <button class="btn btn-secondary" onclick="history.back()">Back to Tools</button>
+        </div>
+    `;
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('tool-modal');
+    if (event.target === modal) {
+        closeToolInterface();
+    }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeToolInterface();
+    }
+});
+</script>
+{% endblock %}

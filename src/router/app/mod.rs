@@ -34,6 +34,10 @@ use mcp::{
     mcp_config_page, get_services, create_service, update_service, delete_service, start_service,
     stop_service, get_service_status, get_tools,
 };
+mod mcp_ui;
+use mcp_ui::{
+    mcp_ui_page, get_ui_resource, execute_tool_with_ui, handle_ui_action, get_execution_status,
+};
 
 use crate::middleware::auth;
 
@@ -66,6 +70,7 @@ pub fn app_router(state: Arc<AppState>) -> Router {
 
     let mcp_router = Router::new()
         .route("/", get(mcp_config_page))
+        .route("/ui", get(mcp_ui_page))
         .route("/api/services", get(get_services))
         .route("/api/services", post(create_service))
         .route("/api/services/{id}", put(update_service))
@@ -74,6 +79,10 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route("/api/services/{id}/stop", post(stop_service))
         .route("/api/services/{id}/status", get(get_service_status))
         .route("/api/tools", get(get_tools))
+        .route("/ui/resource/{service_id}/{tool_name}", get(get_ui_resource))
+        .route("/ui/execute", post(execute_tool_with_ui))
+        .route("/ui/action", post(handle_ui_action))
+        .route("/ui/execution/{execution_id}", get(get_execution_status))
         .with_state(state.clone())
         .layer(axum::middleware::from_fn(auth));
 
