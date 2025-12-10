@@ -24,7 +24,7 @@ So, for Rust enthusiasts and web developers alike, dive in to explore a world wh
 
 ## Tech Stack 🛠️
 
-- [`sqlx`](https://github.com/launchbadge/sqlx): Direct and type-safe SQL queries and migrations.
+- [`libsql`](https://github.com/libsql/libsql): Modern SQLite database with async support.
 - [`tera`](https://github.com/Keats/tera): A templating engine inspired by Jinja2, for rendering the HTML views.
 - [`axum`](https://github.com/tokio-rs/axum): A web application framework that's easy to use and incredibly fast.
 

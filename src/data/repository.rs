@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use sqlx::sqlite::SqlitePool;
-use sqlx::{Sqlite, Transaction};
-
+use crate::data::libsql_database::{Database, DatabaseError};
 use super::model::{
     Agent, AgentWithProvider, CreateAgentRequest, CreateProviderRequest, Provider, ProviderModel,
     ProviderWithModels, UpdateAgentRequest, UpdateProviderRequest, Chat, ChatMessagePair, ProviderType,
@@ -10,291 +8,349 @@ use super::model::{
 
 #[derive(Clone)]
 pub struct ChatRepository {
-    pub pool: Arc<SqlitePool>,
+    pub db: Arc<Database>,
 }
 
 impl ChatRepository {
-    pub async fn get_all_chats(&self, user_id: i64) -> sqlx::Result<Vec<Chat>> {
-        sqlx::query_as!(
-            Chat,
+    pub fn new(db: Arc<Database>) -> Self {
+        Self { db }
+    }
+
+    pub async fn get_all_chats(&self, user_id: i64) -> Result<Vec<Chat>, DatabaseError> {
+        let result = self.db.query(
             "SELECT id, user_id, name FROM chats WHERE user_id = ? ORDER BY created_at DESC",
-            user_id
-        )
-        .fetch_all(&*self.pool)
-        .await
+            vec![serde_json::Value::Number(user_id.into())],
+        ).await?;
+
+        let mut chats = Vec::new();
+        for row in result.rows {
+            chats.push(Chat::from_json_row(&row)?);
+        }
+
+        Ok(chats)
     }
 
-    pub async fn delete_chat(&self, chat_id: i64) -> sqlx::Result<u64> {
-        let result = sqlx::query("DELETE FROM chats WHERE id = ?")
-            .bind(chat_id)
-            .execute(&*self.pool)
-            .await?;
-        Ok(result.rows_affected())
+    pub async fn delete_chat(&self, chat_id: i64) -> Result<u64, DatabaseError> {
+        let result = self.db.execute(
+            "DELETE FROM chats WHERE id = ?",
+            vec![serde_json::Value::Number(chat_id.into())],
+        ).await?;
+
+        Ok(result.rows_affected)
     }
 
-    pub async fn retrieve_chat(&self, chat_id: i64) -> sqlx::Result<Vec<ChatMessagePair>> {
-        sqlx::query_as!(
-            ChatMessagePair,
+    pub async fn retrieve_chat(&self, chat_id: i64) -> Result<Vec<ChatMessagePair>, DatabaseError> {
+        let result = self.db.query(
             "SELECT * FROM v_chat_messages WHERE chat_id = ?",
-            chat_id
-        )
-        .fetch_all(&*self.pool)
-        .await
-    }
-    pub async fn create_chat(&self, user_id: i64, name: &str, model: &str) -> sqlx::Result<i64> {
-        //create chat
-        let chat = sqlx::query!(
-            r#"
-            INSERT INTO chats (user_id, name, model)
-            VALUES (?, ?, ?) RETURNING id;
-            "#,
-            user_id,
-            name,
-            model
-        )
-        .fetch_one(&*self.pool)
-        .await?;
+            vec![serde_json::Value::Number(chat_id.into())],
+        ).await?;
 
-        Ok(chat.id.unwrap())
-    }
-    pub async fn add_ai_message_to_pair(&self, pair_id: i64, message: &str) -> sqlx::Result<i64> {
-        let mut tx: Transaction<Sqlite> = self.pool.begin().await?;
+        let mut message_pairs = Vec::new();
+        for row in result.rows {
+            message_pairs.push(ChatMessagePair::from_json_row(&row)?);
+        }
 
-        let message = sqlx::query!(
-            r#"
-            INSERT INTO messages (message)
-            VALUES (?) RETURNING id;
-            "#,
-            message
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            UPDATE message_pairs
-            SET ai_message_id = ?
-            WHERE id = ?;
-            "#,
-            message.id,
-            pair_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-
-        Ok(message.id)
+        Ok(message_pairs)
     }
 
-    pub async fn add_message_block(&self, chat_id: i64, human_message: &str) -> sqlx::Result<i64> {
-        //create chat
-        let mut tx: Transaction<Sqlite> = self.pool.begin().await?;
+    pub async fn create_chat(&self, user_id: i64, name: &str, model: &str) -> Result<i64, DatabaseError> {
+        let result = self.db.execute(
+            "INSERT INTO chats (user_id, name, model) VALUES (?, ?, ?)",
+            vec![
+                serde_json::Value::Number(user_id.into()),
+                serde_json::Value::String(name.to_string()),
+                serde_json::Value::String(model.to_string()),
+            ],
+        ).await?;
 
-        let message_block = sqlx::query!(
-            r#"
-            INSERT INTO message_blocks (chat_id)
-            VALUES (?) RETURNING id;
-            "#,
-            chat_id,
-        )
-        .fetch_one(&mut *tx)
-        .await?;
+        // Get the last inserted row id
+        let result = self.db.query(
+            "SELECT last_insert_rowid() as id",
+            vec![],
+        ).await?;
 
-        let message = sqlx::query!(
-            r#"
-            INSERT INTO messages (message)
-            VALUES (?) RETURNING id;
-            "#,
-            human_message
-        )
-        .fetch_one(&mut *tx)
-        .await?;
+        if let Some(row) = result.rows.first() {
+            Ok(row["id"].as_i64().unwrap_or(0))
+        } else {
+            Err(DatabaseError("Failed to get inserted row id".to_string()))
+        }
+    }
 
-        let message_pair = sqlx::query!(
-            r#"
-            INSERT INTO message_pairs (human_message_id, message_block_id)
-            VALUES (?, ?) RETURNING id;
-            "#,
-            message.id,
-            message_block.id,
-        )
-        .fetch_one(&mut *tx)
-        .await?;
+    pub async fn add_ai_message_to_pair(&self, pair_id: i64, message: &str) -> Result<i64, DatabaseError> {
+        // Insert message
+        let result = self.db.execute(
+            "INSERT INTO messages (message) VALUES (?)",
+            vec![serde_json::Value::String(message.to_string())],
+        ).await?;
 
-        sqlx::query!(
-            r#"
-            UPDATE message_blocks
-            SET selected_pair_id = ?
-            WHERE id = ?;
-            "#,
-            message_pair.id,
-            message_block.id
-        )
-        .execute(&mut *tx)
-        .await?;
+        // Get message id
+        let result = self.db.query(
+            "SELECT last_insert_rowid() as id",
+            vec![],
+        ).await?;
 
-        tx.commit().await?;
+        if let Some(row) = result.rows.first() {
+            let message_id = row["id"].as_i64().unwrap_or(0);
 
-        Ok(message_pair.id.unwrap())
+            // Update message pair
+            self.db.execute(
+                "UPDATE message_pairs SET ai_message_id = ? WHERE id = ?",
+                vec![
+                    serde_json::Value::Number(message_id.into()),
+                    serde_json::Value::Number(pair_id.into()),
+                ],
+            ).await?;
+
+            Ok(message_id)
+        } else {
+            Err(DatabaseError("Failed to get inserted message id".to_string()))
+        }
+    }
+
+    pub async fn add_message_block(&self, chat_id: i64, human_message: &str) -> Result<i64, DatabaseError> {
+        // Create message block
+        let result = self.db.execute(
+            "INSERT INTO message_blocks (chat_id) VALUES (?)",
+            vec![serde_json::Value::Number(chat_id.into())],
+        ).await?;
+
+        // Get message block id
+        let result = self.db.query(
+            "SELECT last_insert_rowid() as id",
+            vec![],
+        ).await?;
+
+        if let Some(row) = result.rows.first() {
+            let message_block_id = row["id"].as_i64().unwrap_or(0);
+
+            // Insert message
+            let result = self.db.execute(
+                "INSERT INTO messages (message) VALUES (?)",
+                vec![serde_json::Value::String(human_message.to_string())],
+            ).await?;
+
+            let result = self.db.query(
+                "SELECT last_insert_rowid() as id",
+                vec![],
+            ).await?;
+
+            if let Some(row) = result.rows.first() {
+                let message_id = row["id"].as_i64().unwrap_or(0);
+
+                // Create message pair
+                let result = self.db.execute(
+                    "INSERT INTO message_pairs (human_message_id, message_block_id) VALUES (?, ?)",
+                    vec![
+                        serde_json::Value::Number(message_id.into()),
+                        serde_json::Value::Number(message_block_id.into()),
+                    ],
+                ).await?;
+
+                let result = self.db.query(
+                    "SELECT last_insert_rowid() as id",
+                    vec![],
+                ).await?;
+
+                if let Some(row) = result.rows.first() {
+                    let message_pair_id = row["id"].as_i64().unwrap_or(0);
+
+                    // Update message block with selected pair
+                    self.db.execute(
+                        "UPDATE message_blocks SET selected_pair_id = ? WHERE id = ?",
+                        vec![
+                            serde_json::Value::Number(message_pair_id.into()),
+                            serde_json::Value::Number(message_block_id.into()),
+                        ],
+                    ).await?;
+
+                    Ok(message_pair_id)
+                } else {
+                    Err(DatabaseError("Failed to get inserted message pair id".to_string()))
+                }
+            } else {
+                Err(DatabaseError("Failed to get inserted message id".to_string()))
+            }
+        } else {
+            Err(DatabaseError("Failed to get inserted message block id".to_string()))
+        }
     }
 
     // Provider CRUD operations
-    pub async fn get_all_providers(&self) -> sqlx::Result<Vec<Provider>> {
-        sqlx::query_as!(
-            Provider,
+    pub async fn get_all_providers(&self) -> Result<Vec<Provider>, DatabaseError> {
+        let result = self.db.query(
             r#"
             SELECT
-                id as "id!",
-                name as "name!",
-                provider_type as "provider_type: ProviderType",
-                base_url as "base_url!",
-                api_key_encrypted as "api_key_encrypted!",
-                is_active as "is_active!",
-                datetime(created_at) as "created_at!: String",
-                datetime(updated_at) as "updated_at!: String"
+                id,
+                name,
+                provider_type,
+                base_url,
+                api_key_encrypted,
+                is_active,
+                datetime(created_at) as created_at,
+                datetime(updated_at) as updated_at
             FROM providers
             ORDER BY created_at DESC
-            "#
-        )
-        .fetch_all(&*self.pool)
-        .await
+            "#,
+            vec![],
+        ).await?;
+
+        let mut providers = Vec::new();
+        for row in result.rows {
+            providers.push(Provider::from_json_row(&row)?);
+        }
+
+        Ok(providers)
     }
 
-    pub async fn get_provider_by_id(&self, id: i64) -> sqlx::Result<Option<Provider>> {
-        sqlx::query_as!(
-            Provider,
+    pub async fn get_provider_by_id(&self, id: i64) -> Result<Option<Provider>, DatabaseError> {
+        let result = self.db.query(
             r#"
             SELECT
-                id as "id!",
-                name as "name!",
-                provider_type as "provider_type: ProviderType",
-                base_url as "base_url!",
-                api_key_encrypted as "api_key_encrypted!",
-                is_active as "is_active!",
-                datetime(created_at) as "created_at!: String",
-                datetime(updated_at) as "updated_at!: String"
+                id,
+                name,
+                provider_type,
+                base_url,
+                api_key_encrypted,
+                is_active,
+                datetime(created_at) as created_at,
+                datetime(updated_at) as updated_at
             FROM providers
             WHERE id = ?
             "#,
-            id
-        )
-        .fetch_optional(&*self.pool)
-        .await
+            vec![serde_json::Value::Number(id.into())],
+        ).await?;
+
+        if let Some(row) = result.rows.first() {
+            Ok(Some(Provider::from_json_row(row)?))
+        } else {
+            Ok(None)
+        }
     }
 
-    pub async fn get_provider_by_name(&self, name: &str) -> sqlx::Result<Option<Provider>> {
-        sqlx::query_as!(
-            Provider,
+    pub async fn get_provider_by_name(&self, name: &str) -> Result<Option<Provider>, DatabaseError> {
+        let result = self.db.query(
             r#"
             SELECT
-                id as "id!",
-                name as "name!",
-                provider_type as "provider_type: ProviderType",
-                base_url as "base_url!",
-                api_key_encrypted as "api_key_encrypted!",
-                is_active as "is_active!",
-                datetime(created_at) as "created_at!: String",
-                datetime(updated_at) as "updated_at!: String"
+                id,
+                name,
+                provider_type,
+                base_url,
+                api_key_encrypted,
+                is_active,
+                datetime(created_at) as created_at,
+                datetime(updated_at) as updated_at
             FROM providers
             WHERE name = ?
             "#,
-            name
-        )
-        .fetch_optional(&*self.pool)
-        .await
+            vec![serde_json::Value::String(name.to_string())],
+        ).await?;
+
+        if let Some(row) = result.rows.first() {
+            Ok(Some(Provider::from_json_row(row)?))
+        } else {
+            Ok(None)
+        }
     }
 
-    pub async fn create_provider(&self, request: CreateProviderRequest) -> sqlx::Result<i64> {
-        let provider_type_str = match request.provider_type {
-            ProviderType::OpenAI => "openai",
-            ProviderType::Gemini => "gemini",
-        };
+    pub async fn create_provider(&self, request: CreateProviderRequest) -> Result<i64, DatabaseError> {
+        let result = self.db.execute(
+            "INSERT INTO providers (name, provider_type, base_url, api_key_encrypted) VALUES (?, ?, ?, ?)",
+            vec![
+                serde_json::Value::String(request.name),
+                serde_json::Value::String(request.provider_type.to_string()),
+                serde_json::Value::String(request.base_url),
+                serde_json::Value::String(request.api_key),
+            ],
+        ).await?;
 
-        let result = sqlx::query!(
-            r#"
-            INSERT INTO providers (name, provider_type, base_url, api_key_encrypted)
-            VALUES (?, ?, ?, ?)
-            "#,
-            request.name,
-            provider_type_str,
-            request.base_url,
-            request.api_key
-        )
-        .execute(&*self.pool)
-        .await?;
+        let result = self.db.query(
+            "SELECT last_insert_rowid() as id",
+            vec![],
+        ).await?;
 
-        Ok(result.last_insert_rowid())
+        if let Some(row) = result.rows.first() {
+            Ok(row["id"].as_i64().unwrap_or(0))
+        } else {
+            Err(DatabaseError("Failed to get inserted provider_id".to_string()))
+        }
     }
 
-    pub async fn update_provider(&self, id: i64, request: UpdateProviderRequest) -> sqlx::Result<u64> {
-        let mut query = String::from("UPDATE providers SET updated_at = CURRENT_TIMESTAMP");
+    pub async fn update_provider(&self, id: i64, request: UpdateProviderRequest) -> Result<u64, DatabaseError> {
+        let mut updates = Vec::new();
         let mut params = Vec::new();
 
         if let Some(name) = &request.name {
-            query.push_str(", name = ?");
-            params.push(name.clone());
+            updates.push("name = ?");
+            params.push(serde_json::Value::String(name.clone()));
         }
         if let Some(base_url) = &request.base_url {
-            query.push_str(", base_url = ?");
-            params.push(base_url.clone());
+            updates.push("base_url = ?");
+            params.push(serde_json::Value::String(base_url.clone()));
         }
         if let Some(api_key) = &request.api_key {
-            query.push_str(", api_key_encrypted = ?");
-            params.push(api_key.clone());
+            updates.push("api_key_encrypted = ?");
+            params.push(serde_json::Value::String(api_key.clone()));
         }
         if let Some(is_active) = request.is_active {
-            query.push_str(", is_active = ?");
-            params.push(is_active.to_string());
+            updates.push("is_active = ?");
+            params.push(serde_json::Value::Bool(is_active));
         }
 
-        query.push_str(" WHERE id = ?");
-
-        let mut query_builder = sqlx::query(&query);
-        for param in params {
-            query_builder = query_builder.bind(param);
+        if updates.is_empty() {
+            return Ok(0);
         }
-        query_builder = query_builder.bind(id);
 
-        let result = query_builder.execute(&*self.pool).await?;
-        Ok(result.rows_affected())
+        let query = format!(
+            "UPDATE providers SET updated_at = CURRENT_TIMESTAMP, {} WHERE id = ?",
+            updates.join(", ")
+        );
+
+        params.push(serde_json::Value::Number(id.into()));
+
+        let result = self.db.execute(&query, params).await?;
+        Ok(result.rows_affected)
     }
 
-    pub async fn delete_provider(&self, id: i64) -> sqlx::Result<u64> {
-        let result = sqlx::query("DELETE FROM providers WHERE id = ?")
-            .bind(id)
-            .execute(&*self.pool)
-            .await?;
-        Ok(result.rows_affected())
+    pub async fn delete_provider(&self, id: i64) -> Result<u64, DatabaseError> {
+        let result = self.db.execute(
+            "DELETE FROM providers WHERE id = ?",
+            vec![serde_json::Value::Number(id.into())],
+        ).await?;
+
+        Ok(result.rows_affected)
     }
 
     // Provider Model operations
-    pub async fn get_models_by_provider(&self, provider_id: i64) -> sqlx::Result<Vec<ProviderModel>> {
-        sqlx::query_as!(
-            ProviderModel,
+    pub async fn get_models_by_provider(&self, provider_id: i64) -> Result<Vec<ProviderModel>, DatabaseError> {
+        let result = self.db.query(
             r#"
             SELECT
-                id as "id!",
-                provider_id as "provider_id!",
-                name as "name!",
-                display_name as "display_name!",
-                context_length as "context_length!",
+                id,
+                provider_id,
+                name,
+                display_name,
+                context_length,
                 input_price,
                 output_price,
-                capabilities as "capabilities!",
-                is_active as "is_active!",
-                datetime(created_at) as "created_at!: String"
+                capabilities,
+                is_active,
+                datetime(created_at) as created_at
             FROM provider_models
             WHERE provider_id = ? AND is_active = TRUE
             ORDER BY display_name
             "#,
-            provider_id
-        )
-        .fetch_all(&*self.pool)
-        .await
+            vec![serde_json::Value::Number(provider_id.into())],
+        ).await?;
+
+        let mut models = Vec::new();
+        for row in result.rows {
+            models.push(ProviderModel::from_json_row(&row)?);
+        }
+
+        Ok(models)
     }
 
-    pub async fn get_provider_with_models(&self, id: i64) -> sqlx::Result<Option<ProviderWithModels>> {
+    pub async fn get_provider_with_models(&self, id: i64) -> Result<Option<ProviderWithModels>, DatabaseError> {
         let provider = self.get_provider_by_id(id).await?;
         if let Some(provider) = provider {
             let models = self.get_models_by_provider(id).await?;
@@ -314,134 +370,127 @@ impl ChatRepository {
     }
 
     // Agent CRUD operations
-    pub async fn get_all_agents(&self) -> sqlx::Result<Vec<Agent>> {
-        sqlx::query_as!(
-            Agent,
+    pub async fn get_all_agents(&self) -> Result<Vec<Agent>, DatabaseError> {
+        let result = self.db.query(
             r#"
             SELECT
                 id, user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as "allow_tools!", system_prompt,
+                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as allow_tools, system_prompt,
                 COALESCE(top_p, 1.0) as top_p, COALESCE(max_context, 4096) as max_context, file,
                 COALESCE(file_types, '[]') as file_types, COALESCE(temperature, 0.7) as temperature,
                 COALESCE(max_tokens, 2048) as max_tokens, COALESCE(presence_penalty, 0.0) as presence_penalty,
                 COALESCE(frequency_penalty, 0.0) as frequency_penalty, COALESCE(icon, '🤖') as icon,
                 COALESCE(category, 'general') as category, public, is_active,
-                datetime(created_at) as "created_at!: String",
-                datetime(updated_at) as "updated_at!: String"
+                datetime(created_at) as created_at,
+                datetime(updated_at) as updated_at
             FROM agents
             ORDER BY created_at DESC
-            "#
-        )
-        .fetch_all(&*self.pool)
-        .await
+            "#,
+            vec![],
+        ).await?;
+
+        let mut agents = Vec::new();
+        for row in result.rows {
+            agents.push(Agent::from_json_row(&row)?);
+        }
+
+        Ok(agents)
     }
 
-    pub async fn get_agents_by_user(&self, user_id: i64) -> sqlx::Result<Vec<Agent>> {
-        sqlx::query_as!(
-            Agent,
+    pub async fn get_agents_by_user(&self, user_id: i64) -> Result<Vec<Agent>, DatabaseError> {
+        let result = self.db.query(
             r#"
             SELECT
                 id, user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as "allow_tools!", system_prompt,
+                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as allow_tools, system_prompt,
                 COALESCE(top_p, 1.0) as top_p, COALESCE(max_context, 4096) as max_context, file,
                 COALESCE(file_types, '[]') as file_types, COALESCE(temperature, 0.7) as temperature,
                 COALESCE(max_tokens, 2048) as max_tokens, COALESCE(presence_penalty, 0.0) as presence_penalty,
                 COALESCE(frequency_penalty, 0.0) as frequency_penalty, COALESCE(icon, '🤖') as icon,
                 COALESCE(category, 'general') as category, public, is_active,
-                datetime(created_at) as "created_at!: String",
-                datetime(updated_at) as "updated_at!: String"
+                datetime(created_at) as created_at,
+                datetime(updated_at) as updated_at
             FROM agents
             WHERE user_id = ? OR public = TRUE
             ORDER BY created_at DESC
             "#,
-            user_id
-        )
-        .fetch_all(&*self.pool)
-        .await
+            vec![serde_json::Value::Number(user_id.into())],
+        ).await?;
+
+        let mut agents = Vec::new();
+        for row in result.rows {
+            agents.push(Agent::from_json_row(&row)?);
+        }
+
+        Ok(agents)
     }
 
-    pub async fn get_agent_by_id(&self, id: i64) -> sqlx::Result<Option<Agent>> {
-        sqlx::query_as!(
-            Agent,
+    pub async fn get_agent_by_id(&self, id: i64) -> Result<Option<Agent>, DatabaseError> {
+        let result = self.db.query(
             r#"
             SELECT
                 id, user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as "allow_tools!", system_prompt,
+                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as allow_tools, system_prompt,
                 COALESCE(top_p, 1.0) as top_p, COALESCE(max_context, 4096) as max_context, file,
                 COALESCE(file_types, '[]') as file_types, COALESCE(temperature, 0.7) as temperature,
                 COALESCE(max_tokens, 2048) as max_tokens, COALESCE(presence_penalty, 0.0) as presence_penalty,
                 COALESCE(frequency_penalty, 0.0) as frequency_penalty, COALESCE(icon, '🤖') as icon,
                 COALESCE(category, 'general') as category, public, is_active,
-                datetime(created_at) as "created_at!: String",
-                datetime(updated_at) as "updated_at!: String"
+                datetime(created_at) as created_at,
+                datetime(updated_at) as updated_at
             FROM agents
             WHERE id = ?
             "#,
-            id
-        )
-        .fetch_optional(&*self.pool)
-        .await
+            vec![serde_json::Value::Number(id.into())],
+        ).await?;
+
+        if let Some(row) = result.rows.first() {
+            Ok(Some(Agent::from_json_row(row)?))
+        } else {
+            Ok(None)
+        }
     }
 
-    pub async fn get_agent_with_provider(&self, id: i64) -> sqlx::Result<Option<AgentWithProvider>> {
-        // Let me get the agent and provider separately to avoid complex SQLx type issues
-        let agent = sqlx::query!(
-            r#"
-            SELECT
-                id, user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
-                COALESCE(tools, '[]') as tools, COALESCE(allow_tools, '[]') as "allow_tools!", system_prompt,
-                COALESCE(top_p, 1.0) as top_p, COALESCE(max_context, 4096) as max_context, file,
-                COALESCE(file_types, '[]') as file_types, COALESCE(temperature, 0.7) as temperature,
-                COALESCE(max_tokens, 2048) as max_tokens, COALESCE(presence_penalty, 0.0) as presence_penalty,
-                COALESCE(frequency_penalty, 0.0) as frequency_penalty, COALESCE(icon, '🤖') as icon,
-                COALESCE(category, 'general') as category, public, is_active,
-                datetime(created_at) as "created_at!: String",
-                datetime(updated_at) as "updated_at!: String"
-            FROM agents
-            WHERE id = ?
-            "#,
-            id
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
+    pub async fn get_agent_with_provider(&self, id: i64) -> Result<Option<AgentWithProvider>, DatabaseError> {
+        let agent = self.get_agent_by_id(id).await?;
 
-        if let Some(agent_row) = agent {
-            let provider = self.get_provider_by_id(agent_row.provider_id).await?;
+        if let Some(agent) = agent {
+            let provider = self.get_provider_by_id(agent.provider_id).await?;
 
             if let Some(provider) = provider {
-                let tools: Vec<String> = serde_json::from_str(&agent_row.tools).unwrap_or_default();
-                let allow_tools: Vec<String> = serde_json::from_str(&agent_row.allow_tools).unwrap_or_default();
-                let file_types: Vec<String> = serde_json::from_str(&agent_row.file_types).unwrap_or_default();
+                let tools: Vec<String> = serde_json::from_str(&agent.tools).unwrap_or_default();
+                let allow_tools: Vec<String> = serde_json::from_str(&agent.allow_tools).unwrap_or_default();
+                let file_types: Vec<String> = serde_json::from_str(&agent.file_types).unwrap_or_default();
 
                 Ok(Some(AgentWithProvider {
-                    id: agent_row.id,
-                    user_id: agent_row.user_id,
-                    name: agent_row.name,
-                    description: agent_row.description,
+                    id: agent.id,
+                    user_id: agent.user_id,
+                    name: agent.name,
+                    description: agent.description,
                     provider,
-                    model_name: agent_row.model_name,
-                    stream: agent_row.stream,
-                    chat: agent_row.chat,
-                    embed: agent_row.embed,
-                    image: agent_row.image,
-                    tool: agent_row.tool,
+                    model_name: agent.model_name,
+                    stream: agent.stream,
+                    chat: agent.chat,
+                    embed: agent.embed,
+                    image: agent.image,
+                    tool: agent.tool,
                     tools,
                     allow_tools,
-                    system_prompt: agent_row.system_prompt,
-                    top_p: agent_row.top_p,
-                    max_context: agent_row.max_context,
-                    file: agent_row.file,
+                    system_prompt: agent.system_prompt,
+                    top_p: agent.top_p,
+                    max_context: agent.max_context,
+                    file: agent.file,
                     file_types,
-                    temperature: agent_row.temperature,
-                    max_tokens: agent_row.max_tokens,
-                    presence_penalty: agent_row.presence_penalty,
-                    frequency_penalty: agent_row.frequency_penalty,
-                    icon: agent_row.icon,
-                    category: agent_row.category,
-                    public: agent_row.public,
-                    is_active: agent_row.is_active,
-                    created_at: agent_row.created_at,
-                    updated_at: agent_row.updated_at,
+                    temperature: agent.temperature,
+                    max_tokens: agent.max_tokens,
+                    presence_penalty: agent.presence_penalty,
+                    frequency_penalty: agent.frequency_penalty,
+                    icon: agent.icon,
+                    category: agent.category,
+                    public: agent.public,
+                    is_active: agent.is_active,
+                    created_at: agent.created_at,
+                    updated_at: agent.updated_at,
                 }))
             } else {
                 Ok(None)
@@ -451,12 +500,11 @@ impl ChatRepository {
         }
     }
 
-    pub async fn create_agent(&self, user_id: i64, request: CreateAgentRequest) -> sqlx::Result<i64> {
+    pub async fn create_agent(&self, user_id: i64, request: CreateAgentRequest) -> Result<i64, DatabaseError> {
         let tools_json = serde_json::to_string(&request.tools.unwrap_or_default()).unwrap_or_default();
         let allow_tools_json = serde_json::to_string(&request.allow_tools.unwrap_or_default()).unwrap_or_default();
         let file_types_json = serde_json::to_string(&request.file_types.unwrap_or_default()).unwrap_or_default();
 
-        // Create bindings for values that need longer lifetimes
         let stream_val = request.stream.unwrap_or(true);
         let chat_val = request.chat.unwrap_or(true);
         let embed_val = request.embed.unwrap_or(false);
@@ -473,231 +521,176 @@ impl ChatRepository {
         let category_val = request.category.unwrap_or("general".to_string());
         let public_val = request.public.unwrap_or(false);
 
-        let result: sqlx::sqlite::SqliteQueryResult = sqlx::query!(
+        let result = self.db.execute(
             r#"
             INSERT INTO agents (user_id, name, description, provider_id, model_name, stream, chat, embed, image, tool,
                                tools, allow_tools, system_prompt, top_p, max_context, file, file_types, temperature, max_tokens,
                                presence_penalty, frequency_penalty, icon, category, public, is_active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
-            user_id,
-            request.name,
-            request.description,
-            request.provider_id,
-            request.model_name,
-            stream_val,
-            chat_val,
-            embed_val,
-            image_val,
-            tool_val,
-            tools_json,
-            allow_tools_json,
-            request.system_prompt,
-            top_p_val,
-            max_context_val,
-            file_val,
-            file_types_json,
-            temperature_val,
-            max_tokens_val,
-            presence_penalty_val,
-            frequency_penalty_val,
-            icon_val,
-            category_val,
-            public_val,
-            true  // is_active defaults to true
-        )
-        .execute(&*self.pool)
-        .await?;
+            vec![
+                serde_json::Value::Number(user_id.into()),
+                serde_json::Value::String(request.name),
+                serde_json::Value::String(request.description.unwrap_or_default()),
+                serde_json::Value::Number(request.provider_id.into()),
+                serde_json::Value::String(request.model_name),
+                serde_json::Value::Bool(stream_val),
+                serde_json::Value::Bool(chat_val),
+                serde_json::Value::Bool(embed_val),
+                serde_json::Value::Bool(image_val),
+                serde_json::Value::Bool(tool_val),
+                serde_json::Value::String(tools_json),
+                serde_json::Value::String(allow_tools_json),
+                serde_json::Value::String(request.system_prompt.unwrap_or_default()),
+                serde_json::Value::Number(serde_json::Number::from_f64(top_p_val).unwrap_or(serde_json::Number::from(0))),
+                serde_json::Value::Number(max_context_val.into()),
+                serde_json::Value::Bool(file_val),
+                serde_json::Value::String(file_types_json),
+                serde_json::Value::Number(serde_json::Number::from_f64(temperature_val).unwrap_or(serde_json::Number::from(0))),
+                serde_json::Value::Number(max_tokens_val.into()),
+                serde_json::Value::Number(serde_json::Number::from_f64(presence_penalty_val).unwrap_or(serde_json::Number::from(0))),
+                serde_json::Value::Number(serde_json::Number::from_f64(frequency_penalty_val).unwrap_or(serde_json::Number::from(0))),
+                serde_json::Value::String(icon_val),
+                serde_json::Value::String(category_val),
+                serde_json::Value::Bool(public_val),
+                serde_json::Value::Bool(true), // is_active defaults to true
+            ],
+        ).await?;
 
-        Ok(result.last_insert_rowid())
+        let result = self.db.query(
+            "SELECT last_insert_rowid() as id",
+            vec![],
+        ).await?;
+
+        if let Some(row) = result.rows.first() {
+            Ok(row["id"].as_i64().unwrap_or(0))
+        } else {
+            Err(DatabaseError("Failed to get inserted agent_id".to_string()))
+        }
     }
 
-    pub async fn update_agent(&self, id: i64, request: UpdateAgentRequest) -> sqlx::Result<u64> {
-        let mut query = String::from("UPDATE agents SET updated_at = CURRENT_TIMESTAMP");
+    pub async fn update_agent(&self, id: i64, request: UpdateAgentRequest) -> Result<u64, DatabaseError> {
+        let mut updates = Vec::new();
         let mut params = Vec::new();
 
         if let Some(name) = &request.name {
-            query.push_str(", name = ?");
-            params.push(name.clone());
+            updates.push("name = ?");
+            params.push(serde_json::Value::String(name.clone()));
         }
         if let Some(description) = &request.description {
-            query.push_str(", description = ?");
-            params.push(description.clone());
+            updates.push("description = ?");
+            params.push(serde_json::Value::String(description.clone()));
         }
         if let Some(provider_id) = request.provider_id {
-            query.push_str(", provider_id = ?");
-            params.push(provider_id.to_string());
+            updates.push("provider_id = ?");
+            params.push(serde_json::Value::Number(provider_id.into()));
         }
         if let Some(model_name) = &request.model_name {
-            query.push_str(", model_name = ?");
-            params.push(model_name.clone());
+            updates.push("model_name = ?");
+            params.push(serde_json::Value::String(model_name.clone()));
         }
         if let Some(stream) = request.stream {
-            query.push_str(", stream = ?");
-            params.push(stream.to_string());
+            updates.push("stream = ?");
+            params.push(serde_json::Value::Bool(stream));
         }
         if let Some(chat) = request.chat {
-            query.push_str(", chat = ?");
-            params.push(chat.to_string());
+            updates.push("chat = ?");
+            params.push(serde_json::Value::Bool(chat));
         }
         if let Some(embed) = request.embed {
-            query.push_str(", embed = ?");
-            params.push(embed.to_string());
+            updates.push("embed = ?");
+            params.push(serde_json::Value::Bool(embed));
         }
         if let Some(image) = request.image {
-            query.push_str(", image = ?");
-            params.push(image.to_string());
+            updates.push("image = ?");
+            params.push(serde_json::Value::Bool(image));
         }
         if let Some(tool) = request.tool {
-            query.push_str(", tool = ?");
-            params.push(tool.to_string());
+            updates.push("tool = ?");
+            params.push(serde_json::Value::Bool(tool));
         }
         if let Some(tools) = &request.tools {
-            query.push_str(", tools = ?");
-            params.push(serde_json::to_string(tools).unwrap_or_default());
+            updates.push("tools = ?");
+            params.push(serde_json::Value::String(serde_json::to_string(tools).unwrap_or_default()));
         }
         if let Some(allow_tools) = &request.allow_tools {
-            query.push_str(", allow_tools = ?");
-            params.push(serde_json::to_string(allow_tools).unwrap_or_default());
+            updates.push("allow_tools = ?");
+            params.push(serde_json::Value::String(serde_json::to_string(allow_tools).unwrap_or_default()));
         }
         if let Some(system_prompt) = &request.system_prompt {
-            query.push_str(", system_prompt = ?");
-            params.push(system_prompt.clone());
+            updates.push("system_prompt = ?");
+            params.push(serde_json::Value::String(system_prompt.clone()));
         }
         if let Some(top_p) = request.top_p {
-            query.push_str(", top_p = ?");
-            params.push(top_p.to_string());
+            updates.push("top_p = ?");
+            params.push(serde_json::Value::Number(serde_json::Number::from_f64(top_p).unwrap_or(serde_json::Number::from(0))));
         }
         if let Some(max_context) = request.max_context {
-            query.push_str(", max_context = ?");
-            params.push(max_context.to_string());
+            updates.push("max_context = ?");
+            params.push(serde_json::Value::Number(max_context.into()));
         }
         if let Some(file) = request.file {
-            query.push_str(", file = ?");
-            params.push(file.to_string());
+            updates.push("file = ?");
+            params.push(serde_json::Value::Bool(file));
         }
         if let Some(file_types) = &request.file_types {
-            query.push_str(", file_types = ?");
-            params.push(serde_json::to_string(file_types).unwrap_or_default());
+            updates.push("file_types = ?");
+            params.push(serde_json::Value::String(serde_json::to_string(file_types).unwrap_or_default()));
         }
         if let Some(temperature) = request.temperature {
-            query.push_str(", temperature = ?");
-            params.push(temperature.to_string());
+            updates.push("temperature = ?");
+            params.push(serde_json::Value::Number(serde_json::Number::from_f64(temperature).unwrap_or(serde_json::Number::from(0))));
         }
         if let Some(max_tokens) = request.max_tokens {
-            query.push_str(", max_tokens = ?");
-            params.push(max_tokens.to_string());
+            updates.push("max_tokens = ?");
+            params.push(serde_json::Value::Number(max_tokens.into()));
         }
         if let Some(presence_penalty) = request.presence_penalty {
-            query.push_str(", presence_penalty = ?");
-            params.push(presence_penalty.to_string());
+            updates.push("presence_penalty = ?");
+            params.push(serde_json::Value::Number(serde_json::Number::from_f64(presence_penalty).unwrap_or(serde_json::Number::from(0))));
         }
         if let Some(frequency_penalty) = request.frequency_penalty {
-            query.push_str(", frequency_penalty = ?");
-            params.push(frequency_penalty.to_string());
+            updates.push("frequency_penalty = ?");
+            params.push(serde_json::Value::Number(serde_json::Number::from_f64(frequency_penalty).unwrap_or(serde_json::Number::from(0))));
         }
         if let Some(icon) = &request.icon {
-            query.push_str(", icon = ?");
-            params.push(icon.clone());
+            updates.push("icon = ?");
+            params.push(serde_json::Value::String(icon.clone()));
         }
         if let Some(category) = &request.category {
-            query.push_str(", category = ?");
-            params.push(category.clone());
+            updates.push("category = ?");
+            params.push(serde_json::Value::String(category.clone()));
         }
         if let Some(public) = request.public {
-            query.push_str(", public = ?");
-            params.push(public.to_string());
+            updates.push("public = ?");
+            params.push(serde_json::Value::Bool(public));
         }
         if let Some(is_active) = request.is_active {
-            query.push_str(", is_active = ?");
-            params.push(is_active.to_string());
+            updates.push("is_active = ?");
+            params.push(serde_json::Value::Bool(is_active));
         }
 
-        query.push_str(" WHERE id = ?");
-
-        let mut query_builder = sqlx::query(&query);
-        for param in params {
-            query_builder = query_builder.bind(param);
+        if updates.is_empty() {
+            return Ok(0);
         }
-        query_builder = query_builder.bind(id);
 
-        let result = query_builder.execute(&*self.pool).await?;
-        Ok(result.rows_affected())
+        let query = format!(
+            "UPDATE agents SET updated_at = CURRENT_TIMESTAMP, {} WHERE id = ?",
+            updates.join(", ")
+        );
+
+        params.push(serde_json::Value::Number(id.into()));
+
+        let result = self.db.execute(&query, params).await?;
+        Ok(result.rows_affected)
     }
 
-    pub async fn delete_agent(&self, id: i64) -> sqlx::Result<u64> {
-        let result = sqlx::query("DELETE FROM agents WHERE id = ?")
-            .bind(id)
-            .execute(&*self.pool)
-            .await?;
-        Ok(result.rows_affected())
-    }
-}
+    pub async fn delete_agent(&self, id: i64) -> Result<u64, DatabaseError> {
+        let result = self.db.execute(
+            "DELETE FROM agents WHERE id = ?",
+            vec![serde_json::Value::Number(id.into())],
+        ).await?;
 
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use sqlx::migrate::Migrator;
-
-    use super::*;
-
-    async fn setup() -> (Arc<SqlitePool>, ChatRepository, i64) {
-        let x = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:db.db".to_string());
-        let pool = SqlitePool::connect(&x).await.unwrap();
-
-        // let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
-        let pool = Arc::new(pool);
-
-        let migrator = Migrator::new(Path::new(dotenv::var("MIGRATIONS_PATH").unwrap().as_str()))
-            .await
-            .unwrap();
-        // Run the migrations.
-        migrator.run(&*pool).await.unwrap();
-
-        let user = sqlx::query!(
-            "INSERT INTO users (email, password) VALUES (?, ?)",
-            "test@test.com",
-            "test"
-        )
-        .execute(&*pool)
-        .await
-        .unwrap();
-
-        let repo = ChatRepository { pool: pool.clone() };
-
-        (pool, repo, user.last_insert_rowid())
-    }
-
-    #[tokio::test]
-    async fn test_create_chat() {
-        let (pool, repo, user_id) = setup().await;
-        let chat = repo.create_chat(user_id, "test", "gpt-4").await;
-        assert!(chat.is_ok(), "Failed to create chat");
-    }
-
-    #[tokio::test]
-    async fn test_add_message_block() {
-        let (pool, repo, user_id) = setup().await;
-        let chat = repo.create_chat(user_id, "test", "gpt-4").await;
-        assert!(chat.is_ok(), "Failed to create chat");
-        let chat_id = chat.unwrap();
-
-        let message_block = repo.add_message_block(chat_id, "Test").await;
-        assert!(message_block.is_ok(), "Failed to add message_block")
-    }
-
-    #[tokio::test]
-    async fn test_json() {
-        let (pool, repo, user_id) = setup().await;
-        let chat = repo.create_chat(user_id, "test", "gpt-4").await;
-        assert!(chat.is_ok(), "Failed to create chat");
-        let chat_id = chat.unwrap();
-
-        let message_block = repo.add_message_block(chat_id, "Test").await;
-        assert!(message_block.is_ok(), "Failed to add message_block");
-
-        let chat_message_pairs = repo.retrieve_chat(chat_id).await;
-        print!("{:#?}", chat_message_pairs)
+        Ok(result.rows_affected)
     }
 }

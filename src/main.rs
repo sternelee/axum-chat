@@ -1,11 +1,5 @@
 use axum::{http::StatusCode, Router};
 use serde::Serialize;
-use sqlx::{
-    migrate::Migrator,
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    types::chrono::NaiveDateTime,
-    Pool, Sqlite,
-};
 use tera::Tera;
 use tower_cookies::CookieManagerLayer;
 use tower_http::services::ServeDir;
@@ -13,23 +7,23 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod router;
 use router::app_router;
-use std::{net::SocketAddr, path::Path, sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 mod ai;
 mod middleware;
 use middleware::extract_user;
 mod data;
 mod utils;
-use data::repository::ChatRepository;
+use data::{Database, ChatRepository, DatabaseError};
 mod mcp;
 
 use crate::middleware::handle_error;
 
 #[derive(Clone)]
 struct AppState {
-    pool: Arc<Pool<Sqlite>>,
+    db: Arc<Database>,
     tera: Tera,
     chat_repo: ChatRepository,
-    mcp_manager: Arc<std::sync::Mutex<Option<crate::mcp::PracticalMcpManager>>>,
+    mcp_manager: Arc<std::sync::Mutex<Option<crate::mcp::SimplifiedMcpManager>>>,
 }
 
 #[tokio::main]
@@ -37,35 +31,25 @@ async fn main() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "example_tokio_postgres=debug".into()),
+                .unwrap_or_else(|_| "axum_chat=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
     let db_path = dotenv::var("DATABASE_PATH").unwrap();
-    let options = SqliteConnectOptions::new()
-        .filename(db_path)
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-        .create_if_missing(true);
 
-    // setup connection pool
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .acquire_timeout(Duration::from_secs(3))
-        .connect_with(options)
-        .await
-        .expect("can't connect to database");
+    // Initialize libsql database
+    let db = Arc::new(Database::new(db_path));
+    db.connect().await.unwrap_or_else(|e| {
+        eprintln!("Failed to connect to database: {}", e);
+        std::process::exit(1);
+    });
 
-    // Create a new instance of `Migrator` pointing to the migrations folder.
-    let migrator = Migrator::new(Path::new(dotenv::var("MIGRATIONS_PATH").unwrap().as_str()))
-        .await
-        .unwrap();
-    // Run the migrations.
-    migrator.run(&pool).await.unwrap();
+    // Run migrations manually
+    // For now, we'll assume the database is already migrated
+    // TODO: Implement migration runner for libsql
 
-    let pool = Arc::new(pool);
-
-    let chat_repo = ChatRepository { pool: pool.clone() };
+    let chat_repo = ChatRepository::new(db.clone());
 
     let static_files = ServeDir::new("assets");
 
@@ -78,7 +62,7 @@ async fn main() {
     };
 
     // Initialize MCP Manager
-    let mcp_manager_result = crate::mcp::PracticalMcpManager::new("mcp.json");
+    let mcp_manager_result = crate::mcp::SimplifiedMcpManager::new("mcp.json");
     let mcp_manager = match mcp_manager_result {
         Ok(manager) => {
             // Test configuration loading
@@ -97,7 +81,7 @@ async fn main() {
     };
 
     let state = AppState {
-        pool,
+        db,
         tera,
         chat_repo,
         mcp_manager,
@@ -132,12 +116,12 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-#[derive(Debug, sqlx::FromRow, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct User {
     id: i64,
     email: String,
     password: String,
-    created_at: NaiveDateTime,
+    created_at: String, // Changed from NaiveDateTime to String for libsql compatibility
     openai_api_key: Option<String>,
 }
 

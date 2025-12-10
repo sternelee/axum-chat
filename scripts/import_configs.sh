@@ -12,20 +12,13 @@ if ! command -v cargo &> /dev/null; then
     exit 1
 fi
 
-# Check if sqlx-cli is installed
-if ! command -v sqlx &> /dev/null; then
-    echo "Installing sqlx-cli..."
-    cargo install sqlx-cli --no-default-features --features rustls,sqlite
-fi
-
 # Check if database file exists
 if [ ! -f "db/db.db" ]; then
     echo "Database not found. Please run 'just init' first."
     exit 1
 fi
 
-echo "Database migration status:"
-sqlx migrate info --database-url "sqlite:db/db.db" --source db/migrations
+echo "Database file found at db/db.db"
 
 echo ""
 echo "Import complete! You can now:"

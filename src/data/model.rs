@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {
@@ -17,7 +16,7 @@ pub struct Chat {
     pub user_id: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatMessagePair {
     pub id: i64,
     pub model: String,
@@ -29,7 +28,7 @@ pub struct ChatMessagePair {
     pub block_size: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Provider {
     pub id: i64,
     pub name: String,
@@ -41,8 +40,7 @@ pub struct Provider {
     pub updated_at: String, // SQLite timestamp as string
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone)]
-#[sqlx(type_name = "TEXT")]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ProviderType {
     #[serde(rename = "openai")]
     OpenAI,
@@ -50,7 +48,24 @@ pub enum ProviderType {
     Gemini,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+impl ProviderType {
+    pub fn to_string(&self) -> String {
+        match self {
+            ProviderType::OpenAI => "openai".to_string(),
+            ProviderType::Gemini => "gemini".to_string(),
+        }
+    }
+
+    pub fn from_string(s: &str) -> Self {
+        match s {
+            "openai" => ProviderType::OpenAI,
+            "gemini" => ProviderType::Gemini,
+            _ => ProviderType::OpenAI, // default
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProviderModel {
     pub id: i64,
     pub provider_id: i64,
@@ -64,7 +79,7 @@ pub struct ProviderModel {
     pub created_at: String, // SQLite timestamp as string
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Agent {
     pub id: i64,
     pub user_id: i64,
@@ -211,4 +226,98 @@ pub struct ProviderWithModels {
     pub created_at: String, // SQLite timestamp as string
     pub updated_at: String, // SQLite timestamp as string
     pub models: Vec<ProviderModel>,
+}
+
+// Helper functions to convert from JSON rows to our structs
+impl Chat {
+    pub fn from_json_row(row: &serde_json::Value) -> Result<Self, String> {
+        Ok(Chat {
+            id: row["id"].as_i64().ok_or("Missing id")?,
+            name: row["name"].as_str().ok_or("Missing name")?.to_string(),
+            user_id: row["user_id"].as_i64().ok_or("Missing user_id")?,
+        })
+    }
+}
+
+impl ChatMessagePair {
+    pub fn from_json_row(row: &serde_json::Value) -> Result<Self, String> {
+        Ok(ChatMessagePair {
+            id: row["id"].as_i64().ok_or("Missing id")?,
+            model: row["model"].as_str().ok_or("Missing model")?.to_string(),
+            message_block_id: row["message_block_id"].as_i64().ok_or("Missing message_block_id")?,
+            chat_id: row["chat_id"].as_i64().ok_or("Missing chat_id")?,
+            human_message: row["human_message"].as_str().ok_or("Missing human_message")?.to_string(),
+            ai_message: row["ai_message"].as_str().map(|s| s.to_string()),
+            block_rank: row["block_rank"].as_i64().ok_or("Missing block_rank")?,
+            block_size: row["block_size"].as_i64().ok_or("Missing block_size")?,
+        })
+    }
+}
+
+impl Provider {
+    pub fn from_json_row(row: &serde_json::Value) -> Result<Self, String> {
+        let provider_type_str = row["provider_type"].as_str().ok_or("Missing provider_type")?;
+        Ok(Provider {
+            id: row["id"].as_i64().ok_or("Missing id")?,
+            name: row["name"].as_str().ok_or("Missing name")?.to_string(),
+            provider_type: ProviderType::from_string(provider_type_str),
+            base_url: row["base_url"].as_str().ok_or("Missing base_url")?.to_string(),
+            api_key_encrypted: row["api_key_encrypted"].as_str().ok_or("Missing api_key_encrypted")?.to_string(),
+            is_active: row["is_active"].as_bool().ok_or("Missing is_active")?,
+            created_at: row["created_at"].as_str().ok_or("Missing created_at")?.to_string(),
+            updated_at: row["updated_at"].as_str().ok_or("Missing updated_at")?.to_string(),
+        })
+    }
+}
+
+impl ProviderModel {
+    pub fn from_json_row(row: &serde_json::Value) -> Result<Self, String> {
+        Ok(ProviderModel {
+            id: row["id"].as_i64().ok_or("Missing id")?,
+            provider_id: row["provider_id"].as_i64().ok_or("Missing provider_id")?,
+            name: row["name"].as_str().ok_or("Missing name")?.to_string(),
+            display_name: row["display_name"].as_str().ok_or("Missing display_name")?.to_string(),
+            context_length: row["context_length"].as_i64().ok_or("Missing context_length")?,
+            input_price: row["input_price"].as_f64(),
+            output_price: row["output_price"].as_f64(),
+            capabilities: row["capabilities"].as_str().ok_or("Missing capabilities")?.to_string(),
+            is_active: row["is_active"].as_bool().ok_or("Missing is_active")?,
+            created_at: row["created_at"].as_str().ok_or("Missing created_at")?.to_string(),
+        })
+    }
+}
+
+impl Agent {
+    pub fn from_json_row(row: &serde_json::Value) -> Result<Self, String> {
+        Ok(Agent {
+            id: row["id"].as_i64().ok_or("Missing id")?,
+            user_id: row["user_id"].as_i64().ok_or("Missing user_id")?,
+            name: row["name"].as_str().ok_or("Missing name")?.to_string(),
+            description: row["description"].as_str().map(|s| s.to_string()),
+            provider_id: row["provider_id"].as_i64().ok_or("Missing provider_id")?,
+            model_name: row["model_name"].as_str().ok_or("Missing model_name")?.to_string(),
+            stream: row["stream"].as_bool().ok_or("Missing stream")?,
+            chat: row["chat"].as_bool().ok_or("Missing chat")?,
+            embed: row["embed"].as_bool().ok_or("Missing embed")?,
+            image: row["image"].as_bool().ok_or("Missing image")?,
+            tool: row["tool"].as_bool().ok_or("Missing tool")?,
+            tools: row["tools"].as_str().ok_or("Missing tools")?.to_string(),
+            allow_tools: row["allow_tools"].as_str().ok_or("Missing allow_tools")?.to_string(),
+            system_prompt: row["system_prompt"].as_str().map(|s| s.to_string()),
+            top_p: row["top_p"].as_f64().ok_or("Missing top_p")?,
+            max_context: row["max_context"].as_i64().ok_or("Missing max_context")?,
+            file: row["file"].as_bool().ok_or("Missing file")?,
+            file_types: row["file_types"].as_str().ok_or("Missing file_types")?.to_string(),
+            temperature: row["temperature"].as_f64().ok_or("Missing temperature")?,
+            max_tokens: row["max_tokens"].as_i64().ok_or("Missing max_tokens")?,
+            presence_penalty: row["presence_penalty"].as_f64().ok_or("Missing presence_penalty")?,
+            frequency_penalty: row["frequency_penalty"].as_f64().ok_or("Missing frequency_penalty")?,
+            icon: row["icon"].as_str().ok_or("Missing icon")?.to_string(),
+            category: row["category"].as_str().ok_or("Missing category")?.to_string(),
+            public: row["public"].as_bool().ok_or("Missing public")?,
+            is_active: row["is_active"].as_bool().ok_or("Missing is_active")?,
+            created_at: row["created_at"].as_str().ok_or("Missing created_at")?.to_string(),
+            updated_at: row["updated_at"].as_str().ok_or("Missing updated_at")?.to_string(),
+        })
+    }
 }

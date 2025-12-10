@@ -19,6 +19,13 @@ just dev-tailwind            # Start Tailwind CSS watch only
 cargo run                    # Start server without watch mode
 ```
 
+### Testing
+```bash
+cargo test                   # Run all tests
+cargo test <test_name>       # Run specific test
+cargo test -- <filter>       # Run tests matching filter
+```
+
 ### Building
 ```bash
 just build-server            # Build release version of Rust server
@@ -28,8 +35,6 @@ cargo build --release        # Alternative release build
 
 ### Database Operations
 ```bash
-sqlx database create         # Create SQLite database
-sqlx migrate info            # Show migration status
 sqlite3 db/db.db             # Direct database access
 ```
 
@@ -40,20 +45,23 @@ This is a Rust-based ChatGPT clone using Axum + HTMX with a focus on server-side
 ### Core Architecture
 
 **Application State**: The `AppState` struct contains shared state across the application:
-- `Arc<Pool<Sqlite>>` - Database connection pool
+- `Arc<Database>` - Database connection using libsql
 - `Tera` - Template engine instance
 - `ChatRepository` - Data access layer for chat operations
+- `Arc<Mutex<Option<PracticalMcpManager>>>` - MCP server manager for tool integration
 
 **Module Structure**:
 - `src/main.rs` - Application entry point with server setup and middleware stack
-- `src/router/` - HTTP routing and handlers organized by feature (auth, chat, settings, etc.)
+- `src/router/` - HTTP routing and handlers organized by feature (auth, chat, settings, mcp, providers, agents, etc.)
 - `src/data/` - Database models and repository pattern implementation
 - `src/ai/` - OpenAI-compatible API integration and streaming logic
 - `src/middleware/` - Authentication, error handling, and user extraction
+- `src/mcp/` - MCP (Model Context Protocol) server management and tools integration
+- `src/utils/` - Utility functions and helpers
 
 ### Key Patterns
 
-**Repository Pattern**: Database operations are abstracted through `ChatRepository` which handles all SQLite interactions using sqlx for type-safe queries.
+**Repository Pattern**: Database operations are abstracted through `ChatRepository` which handles all SQLite interactions using libsql with JSON-based parameters and custom error handling.
 
 **Middleware Stack**: Ordered middleware layers handle:
 1. Cookie management via `tower_cookies::CookieManagerLayer`
@@ -74,11 +82,22 @@ This is a Rust-based ChatGPT clone using Axum + HTMX with a focus on server-side
 
 ### Database Schema
 
-Uses SQLite with migrations in `db/migrations/`. Key entities:
+Uses SQLite with libsql database backend. Key entities:
 - `users` - Authentication and user management
 - `chats` - Chat sessions per user
 - `message_blocks` and `message_pairs` - Hierarchical message storage
 - `settings` - User-specific configuration (API keys)
+- `mcp_providers` - MCP provider configurations
+- `mcp_tools` - Available MCP tools and functions
+
+### MCP Integration
+
+The application includes comprehensive MCP (Model Context Protocol) server management:
+- **Configuration Management**: JSON-based provider configuration in `mcp.json`
+- **Tool Integration**: Dynamic loading and execution of MCP tools
+- **Provider Support**: Multiple AI providers with configurable endpoints
+- **Security**: Secure handling of MCP server processes and communications
+- **Management Interface**: Web UI for managing MCP providers and tools
 
 ### AI Integration
 
@@ -98,6 +117,14 @@ OPENAI_API_KEY=<api-key> (only necessary for tests, users will add their own key
 
 **Note**: `SILICONFLOW_API_KEY` is the server's default API key, but users can provide their own OpenAI-compatible API keys in settings.
 
+### Key Configuration Files
+
+- `mcp.json` - MCP server and provider configurations
+- `tailwind.config.js` - Tailwind CSS configuration with forms and typography plugins
+- `justfile` - Development task automation with Just
+- `input.css` - Tailwind CSS input file
+- `Cargo.toml` - Rust project dependencies and build configuration
+
 ### Prerequisites and Setup
 
 **External Dependencies**:
@@ -108,7 +135,7 @@ OPENAI_API_KEY=<api-key> (only necessary for tests, users will add their own key
 **Quick Start**:
 1. Clone repository
 2. Create `.env` file (see Environment Configuration section)
-3. `just init` - installs cargo-watch, sqlx-cli, creates database, runs migrations
+3. `just init` - installs cargo-watch, creates database, runs migrations
 4. `just dev` - starts development server with concurrent Tailwind watch
 
 ### Important Implementation Notes
@@ -119,8 +146,10 @@ OPENAI_API_KEY=<api-key> (only necessary for tests, users will add their own key
 - **Frontend Dependencies**:
   - Tailwind CSS standalone CLI must be installed separately
   - HTMX 2.0.8 for dynamic interactions
-  - DaisyUI + Tailwind Browser for styling
-- **Database**: SQLite with WAL mode for better concurrent access
+  - Tailwind CSS forms and typography plugins
+- **Database**: SQLite with libsql backend and WAL mode for better concurrent access
 - **Streaming**: Native JavaScript EventSource API (HTMX SSE extension removed due to `api.selectAndSwap` compatibility issues)
 - **Server**: Runs on port 3000 by default
 - **Release Build**: Optimized with LTO and symbol stripping for production
+- **MCP**: Uses rmcp crate for MCP server communication and process management
+- **Dependencies**: Key crates include reqwest-eventsource for SSE, libsql for database, tera for templating, and tower-cookies for session management

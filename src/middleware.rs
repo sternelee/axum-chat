@@ -34,19 +34,25 @@ pub async fn extract_user(
     let id = session.map_or(-1, |x| x.value().parse::<i64>().unwrap_or(-1));
 
     // Get the user
-    match sqlx::query_as!(
-        User,
-        "SELECT users.*, settings.openai_api_key FROM users LEFT JOIN settings ON settings.user_id=users.id WHERE users.id = $1",
-        id
-    )
-    .fetch_one(&*state.pool)
-    .await
-    {
-        Ok(current_user) => {
-            // insert the current user into a request extension so the handler can
-            // extract it, and make sure `user` is not used after this point
-            req.extensions_mut().insert(Some(current_user));
-            Ok(next.run(req).await)
+    match state.db.query(
+        "SELECT users.id, users.email, users.password, users.created_at, settings.openai_api_key FROM users LEFT JOIN settings ON settings.user_id=users.id WHERE users.id = ?",
+        vec![serde_json::Value::Number(id.into())]
+    ).await {
+        Ok(result) => {
+            if let Some(row) = result.rows.first() {
+                let current_user = User {
+                    id: row["id"].as_i64().unwrap_or(0),
+                    email: row["email"].as_str().unwrap_or("").to_string(),
+                    password: row["password"].as_str().unwrap_or("").to_string(),
+                    created_at: row["created_at"].as_str().unwrap_or("").to_string(),
+                    openai_api_key: row["openai_api_key"].as_str().map(|s| s.to_string()),
+                };
+                req.extensions_mut().insert(Some(current_user));
+                Ok(next.run(req).await)
+            } else {
+                req.extensions_mut().insert(None::<User>);
+                Ok(next.run(req).await)
+            }
         }
         _ => {
             req.extensions_mut().insert(None::<User>);

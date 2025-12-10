@@ -13,7 +13,6 @@ RUN cargo build --release
 
 # Now that dependencies are cached, copy the source code
 COPY src src
-COPY .sqlx .sqlx
 # Ensure the mtimes of the source files are updated
 RUN touch src/*.rs
 # Build the application

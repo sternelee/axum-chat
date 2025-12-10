@@ -97,7 +97,7 @@ pub async fn mcp_config_page(
 pub async fn get_services(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mcp_manager_option = {
         let guard = state.mcp_manager.lock().unwrap();
-        guard.as_ref().map(|m| m.clone())
+        guard.as_ref().cloned()
     };
 
     match mcp_manager_option {
@@ -216,7 +216,7 @@ pub async fn get_service_status(
 pub async fn get_tools(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mcp_manager_option = {
         let guard = state.mcp_manager.lock().unwrap();
-        guard.as_ref().map(|m| m.clone())
+        guard.as_ref().cloned()
     };
 
     match mcp_manager_option {

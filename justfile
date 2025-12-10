@@ -3,8 +3,6 @@ set dotenv-load
 
 init:
 	cargo install cargo-watch
-	cargo install sqlx-cli
-	sqlx database create
 	just db-migrate
 
 dev-server:
@@ -22,11 +20,16 @@ build-tailwind:
 
 db-migrate:
   echo "Migrating ..."
-  sqlx migrate run --source $MIGRATIONS_PATH;
+  sqlite3 $DATABASE_PATH < db/migrations/20231101170247_init.sql
+  sqlite3 $DATABASE_PATH < db/migrations/20241122000001_providers_agents.sql
+  sqlite3 $DATABASE_PATH < db/migrations/20241123000001_add_allow_tools.sql
 
 db-reset:
   echo "Resetting ..."
-  sqlx database drop && sqlx database create && sqlx migrate run --source $MIGRATIONS_PATH
+  rm -f $DATABASE_PATH
+  sqlite3 $DATABASE_PATH < db/migrations/20231101170247_init.sql
+  sqlite3 $DATABASE_PATH < db/migrations/20241122000001_providers_agents.sql
+  sqlite3 $DATABASE_PATH < db/migrations/20241123000001_add_allow_tools.sql
   sqlite3 $DATABASE_PATH < seeds/seed-users.sql
 
 dev:

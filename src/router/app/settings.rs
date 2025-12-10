@@ -24,13 +24,16 @@ pub async fn settings_openai_api_key(
     Form(set_openai_api_key): Form<OpenAiAPIKey>,
 ) -> Result<Redirect, StatusCode> {
     let id = current_user.unwrap().id;
-    sqlx::query("INSERT INTO settings (user_id, openai_api_key) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET openai_api_key = ?")
-        .bind(id)
-        .bind(&set_openai_api_key.api_key)
-        .bind(&set_openai_api_key.api_key)
-        .execute(&*state.pool)
-        .await
-        .unwrap();
+
+      let _ = state.db.execute(
+        "INSERT INTO settings (user_id, openai_api_key) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET openai_api_key = ?",
+        vec![
+            serde_json::Value::Number(id.into()),
+            serde_json::Value::String(set_openai_api_key.api_key.clone()),
+            serde_json::Value::String(set_openai_api_key.api_key),
+        ],
+    ).await
+    .unwrap();
 
     Ok(Redirect::to("/settings"))
 }
