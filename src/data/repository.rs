@@ -194,6 +194,7 @@ impl ChatRepository {
                 supports_streaming,
                 supports_tools,
                 supports_images,
+                local_agent_config,
                 is_active,
                 datetime(created_at) as created_at,
                 datetime(updated_at) as updated_at
@@ -229,6 +230,7 @@ impl ChatRepository {
                 supports_streaming,
                 supports_tools,
                 supports_images,
+                local_agent_config,
                 is_active,
                 datetime(created_at) as created_at,
                 datetime(updated_at) as updated_at
@@ -263,6 +265,7 @@ impl ChatRepository {
                 supports_streaming,
                 supports_tools,
                 supports_images,
+                local_agent_config,
                 is_active,
                 datetime(created_at) as created_at,
                 datetime(updated_at) as updated_at

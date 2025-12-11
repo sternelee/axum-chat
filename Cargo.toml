@@ -10,6 +10,7 @@ axum = { version = "0.8", features = ["macros"] }
 chrono = { version = "0.4", features = ["serde"] }
 dotenv = "0.15.0"
 futures = "0.3.29"
+futures-util = "0.3.29"
 hyper = "1.8"
 reqwest = { version = "0.12", features = ["json"] }
 reqwest-eventsource = "0.6"

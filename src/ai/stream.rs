@@ -339,6 +339,13 @@ pub async fn list_engines(
         ProviderType::Anthropic => format!("{}/messages/batches", base_url), // Anthropic doesn't have models endpoint
         ProviderType::Cohere => format!("{}/models", base_url),
         ProviderType::HuggingFace => format!("{}models", base_url),
+        // Local AI coding agents - return default models
+        ProviderType::ClaudeCode | ProviderType::GeminiCLI | ProviderType::CodexCLI |
+        ProviderType::CursorCLI | ProviderType::QwenCode | ProviderType::ZAIGLM |
+        ProviderType::Aider | ProviderType::CodeiumChat | ProviderType::CopilotCLI |
+        ProviderType::Tabnine => {
+            format!("{}/models", base_url)
+        }
     };
 
     let mut request = client.get(&url);
@@ -362,6 +369,13 @@ pub async fn list_engines(
         }
         ProviderType::Gemini => {
             // Gemini uses API key as query parameter, handled above
+        }
+        // Local AI coding agents - no special auth needed
+        ProviderType::ClaudeCode | ProviderType::GeminiCLI | ProviderType::CodexCLI |
+        ProviderType::CursorCLI | ProviderType::QwenCode | ProviderType::ZAIGLM |
+        ProviderType::Aider | ProviderType::CodeiumChat | ProviderType::CopilotCLI |
+        ProviderType::Tabnine => {
+            // Local agents typically don't require special auth headers
         }
     }
 
@@ -437,6 +451,32 @@ pub async fn list_engines(
             }
             Ok(models)
         }
+        // Local AI coding agents - return default models
+        ProviderType::ClaudeCode | ProviderType::GeminiCLI | ProviderType::CodexCLI |
+        ProviderType::CursorCLI | ProviderType::QwenCode | ProviderType::ZAIGLM |
+        ProviderType::Aider | ProviderType::CodeiumChat | ProviderType::CopilotCLI |
+        ProviderType::Tabnine => {
+            // Return default models for local agents
+            let agent_name = match provider_type {
+                ProviderType::ClaudeCode => "claude-code",
+                ProviderType::GeminiCLI => "gemini-cli",
+                ProviderType::CodexCLI => "codex-cli",
+                ProviderType::CursorCLI => "cursor-cli",
+                ProviderType::QwenCode => "qwen-code",
+                ProviderType::ZAIGLM => "zaiglm",
+                ProviderType::Aider => "aider",
+                ProviderType::CodeiumChat => "codeium-chat",
+                ProviderType::CopilotCLI => "copilot-cli",
+                ProviderType::Tabnine => "tabnine",
+                _ => "local-agent",
+            };
+            Ok(vec![Model {
+                id: agent_name.to_string(),
+                object: "model".to_string(),
+                created: chrono::Utc::now().timestamp(),
+                owned_by: "local".to_string(),
+            }])
+        }
     }
 }
 
@@ -500,6 +540,13 @@ async fn generate_chat_stream(
         }
         ProviderType::HuggingFace => {
             generate_huggingface_stream(agent, messages, sender).await
+        }
+        // Local AI coding agents
+        ProviderType::ClaudeCode | ProviderType::GeminiCLI | ProviderType::CodexCLI |
+        ProviderType::CursorCLI | ProviderType::QwenCode | ProviderType::ZAIGLM |
+        ProviderType::Aider | ProviderType::CodeiumChat | ProviderType::CopilotCLI |
+        ProviderType::Tabnine => {
+            generate_local_agent_stream(agent, messages, sender).await
         }
     }
 }
@@ -1723,4 +1770,15 @@ async fn generate_embeddings(
 
     send_end_event(&sender).await;
     Ok(())
+}
+
+/// Generate streaming response for local AI coding agents
+async fn generate_local_agent_stream(
+    agent: &AgentWithProvider,
+    messages: Vec<ChatMessagePair>,
+    sender: mpsc::Sender<Result<GenerationEvent, Error>>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // For now, we'll use a simple implementation that treats local agents like OpenAI-compatible providers
+    // This could be enhanced to use the LocalAgentManager and LocalAgentClient
+    generate_openai_compatible_stream(agent, messages, sender).await
 }

@@ -15,6 +15,7 @@ mod data;
 mod utils;
 use data::{Database, ChatRepository, DatabaseError};
 mod mcp;
+mod local_agents;
 
 use crate::middleware::handle_error;
 
@@ -24,6 +25,7 @@ struct AppState {
     tera: Tera,
     chat_repo: ChatRepository,
     mcp_manager: Arc<std::sync::Mutex<Option<crate::mcp::SimplifiedMcpManager>>>,
+    local_agent_manager: Arc<crate::local_agents::LocalAgentManager>,
 }
 
 #[tokio::main]
@@ -80,11 +82,15 @@ async fn main() {
         }
     };
 
+    // Initialize Local Agent Manager
+    let local_agent_manager = Arc::new(crate::local_agents::LocalAgentManager::new());
+
     let state = AppState {
         db,
         tera,
         chat_repo,
         mcp_manager,
+        local_agent_manager,
     };
     let shared_app_state = Arc::new(state);
 

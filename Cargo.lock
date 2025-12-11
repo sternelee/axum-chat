@@ -2238,6 +2238,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "futures",
+ "futures-util",
  "html-escape",
  "hyper 1.8.1",
  "libsql",

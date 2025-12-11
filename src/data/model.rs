@@ -47,10 +47,13 @@ pub struct Provider {
     pub is_active: bool,
     pub created_at: String, // SQLite timestamp as string
     pub updated_at: String, // SQLite timestamp as string
+    // Local agent specific fields (stored as JSON)
+    pub local_agent_config: Option<String>, // JSON string of LocalAgentConfig
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum ProviderType {
+    // Cloud-based AI Providers
     #[serde(rename = "openai")]
     OpenAI,
     #[serde(rename = "openrouter")]
@@ -73,11 +76,34 @@ pub enum ProviderType {
     HuggingFace,
     #[serde(rename = "xai")]
     XAI,
+
+    // Local AI Coding Agents
+    #[serde(rename = "claude-code")]
+    ClaudeCode,
+    #[serde(rename = "gemini-cli")]
+    GeminiCLI,
+    #[serde(rename = "codex-cli")]
+    CodexCLI,
+    #[serde(rename = "cursor-cli")]
+    CursorCLI,
+    #[serde(rename = "qwen-code")]
+    QwenCode,
+    #[serde(rename = "zai-glm")]
+    ZAIGLM,
+    #[serde(rename = "aider")]
+    Aider,
+    #[serde(rename = "codeium-chat")]
+    CodeiumChat,
+    #[serde(rename = "copilot-cli")]
+    CopilotCLI,
+    #[serde(rename = "tabnine")]
+    Tabnine,
 }
 
 impl ProviderType {
     pub fn to_string(&self) -> String {
         match self {
+            // Cloud-based providers
             ProviderType::OpenAI => "openai".to_string(),
             ProviderType::OpenRouter => "openrouter".to_string(),
             ProviderType::DeepSeek => "deepseek".to_string(),
@@ -89,11 +115,24 @@ impl ProviderType {
             ProviderType::Gemini => "gemini".to_string(),
             ProviderType::HuggingFace => "huggingface".to_string(),
             ProviderType::XAI => "xai".to_string(),
+
+            // Local AI coding agents
+            ProviderType::ClaudeCode => "claude-code".to_string(),
+            ProviderType::GeminiCLI => "gemini-cli".to_string(),
+            ProviderType::CodexCLI => "codex-cli".to_string(),
+            ProviderType::CursorCLI => "cursor-cli".to_string(),
+            ProviderType::QwenCode => "qwen-code".to_string(),
+            ProviderType::ZAIGLM => "zai-glm".to_string(),
+            ProviderType::Aider => "aider".to_string(),
+            ProviderType::CodeiumChat => "codeium-chat".to_string(),
+            ProviderType::CopilotCLI => "copilot-cli".to_string(),
+            ProviderType::Tabnine => "tabnine".to_string(),
         }
     }
 
     pub fn from_string(s: &str) -> Self {
         match s.to_lowercase().as_str() {
+            // Cloud-based providers
             "openai" => ProviderType::OpenAI,
             "openrouter" => ProviderType::OpenRouter,
             "deepseek" => ProviderType::DeepSeek,
@@ -105,12 +144,26 @@ impl ProviderType {
             "gemini" => ProviderType::Gemini,
             "huggingface" => ProviderType::HuggingFace,
             "xai" => ProviderType::XAI,
+
+            // Local AI coding agents
+            "claude-code" => ProviderType::ClaudeCode,
+            "gemini-cli" => ProviderType::GeminiCLI,
+            "codex-cli" => ProviderType::CodexCLI,
+            "cursor-cli" => ProviderType::CursorCLI,
+            "qwen-code" => ProviderType::QwenCode,
+            "zai-glm" => ProviderType::ZAIGLM,
+            "aider" => ProviderType::Aider,
+            "codeium-chat" => ProviderType::CodeiumChat,
+            "copilot-cli" => ProviderType::CopilotCLI,
+            "tabnine" => ProviderType::Tabnine,
+
             _ => ProviderType::OpenAI, // default
         }
     }
 
     pub fn display_name(&self) -> &'static str {
         match self {
+            // Cloud-based providers
             ProviderType::OpenAI => "OpenAI",
             ProviderType::OpenRouter => "OpenRouter",
             ProviderType::DeepSeek => "DeepSeek",
@@ -122,11 +175,24 @@ impl ProviderType {
             ProviderType::Gemini => "Google Gemini",
             ProviderType::HuggingFace => "Hugging Face",
             ProviderType::XAI => "xAI Grok",
+
+            // Local AI coding agents
+            ProviderType::ClaudeCode => "Claude Code",
+            ProviderType::GeminiCLI => "Gemini CLI",
+            ProviderType::CodexCLI => "GitHub Copilot CLI",
+            ProviderType::CursorCLI => "Cursor CLI",
+            ProviderType::QwenCode => "Qwen Code",
+            ProviderType::ZAIGLM => "Z.AI GLM-4",
+            ProviderType::Aider => "Aider",
+            ProviderType::CodeiumChat => "Codeium Chat",
+            ProviderType::CopilotCLI => "GitHub Copilot CLI",
+            ProviderType::Tabnine => "Tabnine",
         }
     }
 
     pub fn default_base_url(&self) -> &'static str {
         match self {
+            // Cloud-based providers
             ProviderType::OpenAI => "https://api.openai.com/v1",
             ProviderType::OpenRouter => "https://openrouter.ai/api/v1",
             ProviderType::DeepSeek => "https://api.deepseek.com/v1",
@@ -138,6 +204,18 @@ impl ProviderType {
             ProviderType::Gemini => "https://generativelanguage.googleapis.com/v1beta/",
             ProviderType::HuggingFace => "https://api-inference.huggingface.co/models",
             ProviderType::XAI => "https://api.x.ai/v1",
+
+            // Local AI coding agents - use local endpoints
+            ProviderType::ClaudeCode => "http://localhost:3000",
+            ProviderType::GeminiCLI => "http://localhost:8080",
+            ProviderType::CodexCLI => "http://localhost:7860",
+            ProviderType::CursorCLI => "http://localhost:8081",
+            ProviderType::QwenCode => "http://localhost:8082",
+            ProviderType::ZAIGLM => "http://localhost:8083",
+            ProviderType::Aider => "http://localhost:8084",
+            ProviderType::CodeiumChat => "http://localhost:8085",
+            ProviderType::CopilotCLI => "http://localhost:8086",
+            ProviderType::Tabnine => "http://localhost:8087",
         }
     }
 
@@ -198,6 +276,58 @@ impl ProviderType {
                 embed: None,
                 image: None,
             },
+
+            // Local AI coding agents - typically support chat and code generation
+            ProviderType::ClaudeCode => ProviderEndpoints {
+                chat: Some("/api/v1/chat".to_string()),
+                embed: None,
+                image: None,
+            },
+            ProviderType::GeminiCLI => ProviderEndpoints {
+                chat: Some("/v1/chat".to_string()),
+                embed: Some("/v1/embed".to_string()),
+                image: None,
+            },
+            ProviderType::CodexCLI => ProviderEndpoints {
+                chat: Some("/v1/engines/codex/completions".to_string()),
+                embed: None,
+                image: None,
+            },
+            ProviderType::CursorCLI => ProviderEndpoints {
+                chat: Some("/v1/chat".to_string()),
+                embed: None,
+                image: None,
+            },
+            ProviderType::QwenCode => ProviderEndpoints {
+                chat: Some("/api/v1/chat".to_string()),
+                embed: Some("/api/v1/embed".to_string()),
+                image: None,
+            },
+            ProviderType::ZAIGLM => ProviderEndpoints {
+                chat: Some("/v1/chat/completions".to_string()),
+                embed: Some("/v1/embeddings".to_string()),
+                image: None,
+            },
+            ProviderType::Aider => ProviderEndpoints {
+                chat: Some("/v1/chat".to_string()),
+                embed: None,
+                image: None,
+            },
+            ProviderType::CodeiumChat => ProviderEndpoints {
+                chat: Some("/v1/chat".to_string()),
+                embed: None,
+                image: None,
+            },
+            ProviderType::CopilotCLI => ProviderEndpoints {
+                chat: Some("/v1/copilot".to_string()),
+                embed: None,
+                image: None,
+            },
+            ProviderType::Tabnine => ProviderEndpoints {
+                chat: Some("/v1/chat".to_string()),
+                embed: None,
+                image: None,
+            },
         }
     }
 }
@@ -207,6 +337,38 @@ pub struct ProviderEndpoints {
     pub chat: Option<String>,
     pub embed: Option<String>,
     pub image: Option<String>,
+}
+
+// Local AI Agent specific configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalAgentConfig {
+    pub executable_path: String,
+    pub working_directory: Option<String>,
+    pub environment_variables: std::collections::HashMap<String, String>,
+    pub startup_command: String,
+    pub shutdown_command: Option<String>,
+    pub health_check_endpoint: Option<String>,
+    pub auto_restart: bool,
+    pub max_restarts: u32,
+    pub startup_timeout: u64, // seconds
+    pub request_timeout: u64,  // seconds
+}
+
+impl Default for LocalAgentConfig {
+    fn default() -> Self {
+        Self {
+            executable_path: String::new(),
+            working_directory: None,
+            environment_variables: std::collections::HashMap::new(),
+            startup_command: String::new(),
+            shutdown_command: None,
+            health_check_endpoint: Some("/health".to_string()),
+            auto_restart: true,
+            max_restarts: 3,
+            startup_timeout: 30,
+            request_timeout: 60,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -450,7 +612,40 @@ impl Provider {
             is_active: row["is_active"].as_bool().ok_or("Missing is_active")?,
             created_at: row["created_at"].as_str().ok_or("Missing created_at")?.to_string(),
             updated_at: row["updated_at"].as_str().ok_or("Missing updated_at")?.to_string(),
+            local_agent_config: row["local_agent_config"].as_str().map(|s| s.to_string()),
         })
+    }
+
+    /// Check if this provider is a local AI agent
+    pub fn is_local_agent(&self) -> bool {
+        matches!(
+            self.provider_type,
+            ProviderType::ClaudeCode |
+                ProviderType::GeminiCLI |
+                ProviderType::CodexCLI |
+                ProviderType::CursorCLI |
+                ProviderType::QwenCode |
+                ProviderType::ZAIGLM |
+                ProviderType::Aider |
+                ProviderType::CodeiumChat |
+                ProviderType::CopilotCLI |
+                ProviderType::Tabnine
+        )
+    }
+
+    /// Get the local agent configuration if this is a local agent
+    pub fn get_local_agent_config(&self) -> Option<LocalAgentConfig> {
+        self.local_agent_config.as_ref().and_then(|config_str| {
+            serde_json::from_str(config_str).ok()
+        })
+    }
+
+    /// Set the local agent configuration
+    pub fn set_local_agent_config(&mut self, config: LocalAgentConfig) {
+        match serde_json::to_string(&config) {
+            Ok(json_str) => self.local_agent_config = Some(json_str),
+            Err(_) => self.local_agent_config = None,
+        }
     }
 }
 
