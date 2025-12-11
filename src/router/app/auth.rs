@@ -25,10 +25,9 @@ pub async fn login(
     let mut context = Context::new();
     context.insert("name", "World");
 
-    // Pass error parameter to template if present
-    if let Some(error) = query.error {
-        context.insert("error", &error);
-    }
+    // Always pass error parameter to template (empty string if no error)
+    let error_param = query.error.unwrap_or_else(|| String::new());
+    context.insert("error", &error_param);
 
     let home = state.tera.render("views/login.html", &context).unwrap();
 
