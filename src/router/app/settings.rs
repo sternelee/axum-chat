@@ -102,18 +102,45 @@ pub async fn settings(
     context.insert("enhanced_markdown", &user.enhanced_markdown);
 
     // Get available themes from syntax highlighter
-    let themes = vec![
-        ("base16-ocean.dark", "Ocean Dark"),
-        ("base16-eighties.dark", "Eighties Dark"),
-        ("base16-mocha.dark", "Mocha Dark"),
-        ("base16-tomorrow.dark", "Tomorrow Dark"),
-        ("Solarized (dark)", "Solarized Dark"),
-        ("base16-ocean.light", "Ocean Light"),
-        ("base16-tomorrow.light", "Tomorrow Light"),
-        ("InspiredGitHub", "GitHub Light"),
-        ("Material", "Material"),
+    let theme_options = vec![
+        serde_json::json!({
+            "value": "base16-ocean.dark",
+            "name": "Ocean Dark"
+        }),
+        serde_json::json!({
+            "value": "base16-eighties.dark",
+            "name": "Eighties Dark"
+        }),
+        serde_json::json!({
+            "value": "base16-mocha.dark",
+            "name": "Mocha Dark"
+        }),
+        serde_json::json!({
+            "value": "base16-tomorrow.dark",
+            "name": "Tomorrow Dark"
+        }),
+        serde_json::json!({
+            "value": "Solarized (dark)",
+            "name": "Solarized Dark"
+        }),
+        serde_json::json!({
+            "value": "base16-ocean.light",
+            "name": "Ocean Light"
+        }),
+        serde_json::json!({
+            "value": "base16-tomorrow.light",
+            "name": "Tomorrow Light"
+        }),
+        serde_json::json!({
+            "value": "InspiredGitHub",
+            "name": "GitHub Light"
+        }),
+        serde_json::json!({
+            "value": "Material",
+            "name": "Material"
+        }),
     ];
-    context.insert("available_themes", &themes);
+    context.insert("available_themes", &theme_options);
 
     let settings = state.tera.render("views/settings.html", &context).unwrap();
 

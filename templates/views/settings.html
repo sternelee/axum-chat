@@ -34,9 +34,9 @@
                             <span class="label-text-alt">Choose a theme for code blocks</span>
                         </label>
                         <select name="syntax_theme" class="select select-bordered w-full max-w-xs">
-                            {% for (theme_value, theme_name) in available_themes %}
-                                <option value="{{ theme_value }}" {% if syntax_theme == theme_value %}selected{% endif %}>
-                                    {{ theme_name }}
+                            {% for theme in available_themes %}
+                                <option value="{{ theme.value }}" {% if syntax_theme == theme.value %}selected{% endif %}>
+                                    {{ theme.name }}
                                 </option>
                             {% endfor %}
                         </select>
