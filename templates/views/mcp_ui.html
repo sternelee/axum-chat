@@ -1,8 +1,4 @@
-{% extends "components/base.html" %}
-
-{% block title %}MCP UI - Interactive Tool Interface{% endblock %}
-
-{% block extra_head %}
+<div class="min-h-[100vh] pt-[200px] px-4">
 <style>
 .mcp-ui-container {
     max-width: 1200px;
@@ -294,9 +290,6 @@
     }
 }
 </style>
-{% endblock %}
-
-{% block content %}
 <div class="mcp-ui-container">
     <div class="mcp-header">
         <h1>🛠️ MCP Interactive UI</h1>
@@ -359,9 +352,6 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_scripts %}
 <script>
 let currentExecutionId = null;
 let executionInterval = null;
@@ -590,4 +580,4 @@ document.addEventListener('keydown', function(event) {
     }
 });
 </script>
-{% endblock %}
+</div>
