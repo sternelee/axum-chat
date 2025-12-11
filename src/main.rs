@@ -130,6 +130,10 @@ pub struct User {
     password: String,
     created_at: String, // Changed from NaiveDateTime to String for libsql compatibility
     openai_api_key: Option<String>,
+    syntax_theme: String,
+    code_line_numbers: bool,
+    code_wrap_lines: bool,
+    enhanced_markdown: bool,
 }
 
 /// Utility function for mapping any error into a `500 Internal Server Error`

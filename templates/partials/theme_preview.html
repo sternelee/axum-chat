@@ -1,0 +1,26 @@
+<div class="code-block-container">
+    <!-- Header with theme info -->
+    <div class="flex items-center justify-between px-4 py-2 bg-base-200 border-b border-base-300">
+        <div class="flex items-center space-x-2">
+            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+            <span class="ml-3 text-sm font-medium text-base-content/70">rust</span>
+            <span class="ml-2 text-xs text-base-content/50">{{ theme_name }}</span>
+        </div>
+    </div>
+
+    <!-- Syntax highlighted code content -->
+    <div class="overflow-x-auto">
+        <table class="highlight-table w-full">
+            <tbody>
+                <tr>
+                    <td class="line-numbers-cell"><span class="line-number">1</span></td>
+                    <td class="code-cell">
+                        <pre><code class="hljs">{{ highlighted_code|safe }}</code></pre>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

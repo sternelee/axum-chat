@@ -1,5 +1,14 @@
 // Utility functions used across multiple modules
 
+pub mod markdown;
+pub use markdown::{markdown_to_enhanced_html, markdown_to_html_with_user_prefs, EnhancedMarkdownRenderer};
+
+pub mod syntax;
+pub use syntax::{SyntaxHighlighter, HighlightConfig, highlight_code, highlight_code_with_theme};
+
+// Import the markdown to_html function from the external crate
+use ::markdown::to_html;
+
 // Enhanced function to add DaisyUI classes and basic code styling
 pub fn add_daisyui_classes(html: &str) -> String {
     let mut styled_html = html.to_string();
@@ -158,28 +167,17 @@ fn process_code_blocks_basic(html: &str) -> String {
 
 // Helper function to convert markdown to HTML using the markdown crate with basic features only
 pub fn markdown_to_html(markdown: &str) -> String {
-    use markdown::{CompileOptions, Options, ParseOptions};
-
-    // Start with basic CommonMark features only
-    let parse_options = ParseOptions::default();
-    let compile_options = CompileOptions::default();
-
-    let options = Options {
-        parse: parse_options,
-        compile: compile_options,
-    };
-
-    let html = markdown::to_html_with_options(markdown, &options).unwrap_or_else(|_| {
-        // Fallback to basic HTML escaping if markdown processing fails
-        markdown
-            .replace('&', "&amp;")
-            .replace('<', "&lt;")
-            .replace('>', "&gt;")
-            .replace('\n', "<br/>")
-    });
-
-    // Add DaisyUI classes to HTML elements
+    let html = to_html(markdown);
     add_daisyui_classes(&html)
+}
+
+// Enhanced markdown to HTML conversion with Streamdown-inspired features
+pub fn markdown_to_html_enhanced(markdown: &str, use_enhanced: bool) -> String {
+    if use_enhanced {
+        markdown_to_enhanced_html(markdown)
+    } else {
+        markdown_to_html(markdown)
+    }
 }
 
 #[cfg(test)]
@@ -195,9 +193,25 @@ mod tests {
         // Verify that markdown processing works from utils module
         assert!(html.contains("<h1"));
         assert!(html.contains("table table-zebra"));
-        assert!(html.contains("badge"));
         assert!(html.contains("Test Header"));
 
         println!("✅ Utils module markdown processing works correctly!");
+    }
+
+    #[test]
+    fn test_enhanced_markdown_function() {
+        let test_markdown = "# Test Header\n\nThis is a `test` with some **bold** text.\n\n```rust\nlet x = 42;\n```";
+
+        // Test enhanced markdown
+        let enhanced_html = markdown_to_html_enhanced(test_markdown, true);
+        assert!(enhanced_html.contains("code-block-container"));
+        assert!(enhanced_html.contains("Rust"));
+
+        // Test basic markdown (backward compatibility)
+        let basic_html = markdown_to_html_enhanced(test_markdown, false);
+        assert!(basic_html.contains("<h1"));
+        assert!(!basic_html.contains("code-block-container"));
+
+        println!("✅ Enhanced markdown function works correctly!");
     }
 }

@@ -35,7 +35,13 @@ pub async fn extract_user(
 
     // Get the user
     match state.db.query(
-        "SELECT users.id, users.email, users.password, users.created_at, settings.openai_api_key FROM users LEFT JOIN settings ON settings.user_id=users.id WHERE users.id = ?",
+        "SELECT users.id, users.email, users.password, users.created_at,
+                settings.openai_api_key,
+                COALESCE(settings.syntax_theme, 'base16-ocean.dark') as syntax_theme,
+                COALESCE(settings.code_line_numbers, 1) as code_line_numbers,
+                COALESCE(settings.code_wrap_lines, 0) as code_wrap_lines,
+                COALESCE(settings.enhanced_markdown, 1) as enhanced_markdown
+         FROM users LEFT JOIN settings ON settings.user_id=users.id WHERE users.id = ?",
         vec![serde_json::Value::Number(id.into())]
     ).await {
         Ok(result) => {
@@ -46,6 +52,10 @@ pub async fn extract_user(
                     password: row["password"].as_str().unwrap_or("").to_string(),
                     created_at: row["created_at"].as_str().unwrap_or("").to_string(),
                     openai_api_key: row["openai_api_key"].as_str().map(|s| s.to_string()),
+                    syntax_theme: row["syntax_theme"].as_str().unwrap_or("base16-ocean.dark").to_string(),
+                    code_line_numbers: row["code_line_numbers"].as_bool().unwrap_or(true),
+                    code_wrap_lines: row["code_wrap_lines"].as_bool().unwrap_or(false),
+                    enhanced_markdown: row["enhanced_markdown"].as_bool().unwrap_or(true),
                 };
                 req.extensions_mut().insert(Some(current_user));
                 Ok(next.run(req).await)

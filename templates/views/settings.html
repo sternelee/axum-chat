@@ -1,15 +1,145 @@
-<div class="min-h-[100vh] pt-[200px]">
-    <form action="/settings" method="post">
-        <div class="shadow-lg max-w-xl m-auto">
-            <label for="hs-trailing-button-add-on" class="sr-only">Label</label>
-            <div class="flex rounded-md shadow-sm">
-                <input name="api_key" type="password" value="{{ openai_api_key }}"
-                    class="p-2 block w-full border-gray-200 shadow-sm rounded-l-md text-sm focus:z-10 focus:border-indigo-500 focus:ring-indigo-500">
-                <button type="submit"
-                    class="py-3 px-4 inline-flex flex-shrink-0 justify-center items-center gap-2 rounded-r-md border border-transparent font-semibold bg-indigo-500 text-white hover:bg-indigo-600 focus:z-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm">
-                    Update API key
-                </button>
+<div class="min-h-[100vh] pt-[200px] px-4">
+    <div class="max-w-4xl mx-auto space-y-8">
+        <!-- API Key Section -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-4">API Settings</h2>
+                <form action="/settings" method="post">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">OpenAI API Key</span>
+                        </label>
+                        <div class="flex gap-2">
+                            <input name="api_key" type="password" value="{{ openai_api_key }}"
+                                class="input input-bordered flex-1" placeholder="sk-...">
+                            <button type="submit" class="btn btn-primary">
+                                Update API Key
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
-    </form>
+
+        <!-- Syntax Highlighting Theme Section -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-2xl mb-4">Syntax Highlighting & Markdown Settings</h2>
+
+                <form action="/settings/theme" method="post" class="space-y-6">
+                    <!-- Theme Selection -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">Syntax Highlighting Theme</span>
+                            <span class="label-text-alt">Choose a theme for code blocks</span>
+                        </label>
+                        <select name="syntax_theme" class="select select-bordered w-full max-w-xs">
+                            {% for (theme_value, theme_name) in available_themes %}
+                                <option value="{{ theme_value }}" {% if syntax_theme == theme_value %}selected{% endif %}>
+                                    {{ theme_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Code Display Options -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">Code Display Options</span>
+                        </label>
+
+                        <div class="space-y-3">
+                            <label class="cursor-pointer label justify-start gap-3">
+                                <input type="checkbox" name="code_line_numbers"
+                                    {% if code_line_numbers %}checked{% endif %}
+                                    class="checkbox checkbox-primary">
+                                <span class="label-text">Show line numbers in code blocks</span>
+                            </label>
+
+                            <label class="cursor-pointer label justify-start gap-3">
+                                <input type="checkbox" name="code_wrap_lines"
+                                    {% if code_wrap_lines %}checked{% endif %}
+                                    class="checkbox checkbox-primary">
+                                <span class="label-text">Wrap long lines in code blocks</span>
+                            </label>
+
+                            <label class="cursor-pointer label justify-start gap-3">
+                                <input type="checkbox" name="enhanced_markdown"
+                                    {% if enhanced_markdown %}checked{% endif %}
+                                    class="checkbox checkbox-primary">
+                                <span class="label-text">Use enhanced markdown rendering</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Theme Preview -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">Theme Preview</span>
+                            <span class="label-text-alt">See how your code will look</span>
+                        </label>
+                        <div id="theme-preview" class="mockup-code border border-base-300 rounded-lg overflow-hidden">
+                            <!-- Preview will be loaded here -->
+                        </div>
+                    </div>
+
+                    <div class="card-actions justify-end">
+                        <button type="submit" class="btn btn-primary">
+                            Save Theme Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+// Load theme preview on page load and when theme changes
+document.addEventListener('DOMContentLoaded', function() {
+    loadThemePreview();
+
+    const themeSelect = document.querySelector('select[name="syntax_theme"]');
+    if (themeSelect) {
+        themeSelect.addEventListener('change', loadThemePreview);
+    }
+});
+
+async function loadThemePreview() {
+    const theme = document.querySelector('select[name="syntax_theme"]').value;
+    const previewContainer = document.getElementById('theme-preview');
+
+    if (previewContainer) {
+        previewContainer.innerHTML = '<div class="p-8 text-center">Loading preview...</div>';
+
+        try {
+            const formData = new FormData();
+            formData.append('theme', theme);
+            formData.append('sample_code', `fn main() {
+    let greeting = "Hello, World!";
+    println!("{}", greeting);
+
+    let numbers = vec![1, 2, 3, 4, 5];
+    for num in numbers {
+        println!("Number: {}", num);
+    }
+}`);
+
+            const response = await fetch('/settings/theme/preview', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const html = await response.text();
+                previewContainer.innerHTML = html;
+            } else {
+                previewContainer.innerHTML = '<div class="p-4 text-center text-error">Failed to load preview</div>';
+            }
+        } catch (error) {
+            console.error('Error loading theme preview:', error);
+            previewContainer.innerHTML = '<div class="p-4 text-center text-error">Error loading preview</div>';
+        }
+    }
+}
+</script>
