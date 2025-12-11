@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
     response::{Html, IntoResponse, Redirect, Response},
     Form, Json,
@@ -13,9 +13,23 @@ use std::sync::Arc;
 
 use crate::{AppState, User};
 
-pub async fn login(State(state): State<Arc<AppState>>) -> Html<String> {
+#[derive(Deserialize)]
+pub struct LoginQuery {
+    error: Option<String>,
+}
+
+pub async fn login(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<LoginQuery>
+) -> Html<String> {
     let mut context = Context::new();
     context.insert("name", "World");
+
+    // Pass error parameter to template if present
+    if let Some(error) = query.error {
+        context.insert("error", &error);
+    }
+
     let home = state.tera.render("views/login.html", &context).unwrap();
 
     let mut context = Context::new();
@@ -34,13 +48,21 @@ pub enum LogInError {
 impl IntoResponse for LogInError {
     fn into_response(self) -> Response {
         match self {
-            LogInError::InvalidCredentials => (
-                StatusCode::BAD_REQUEST,
-                Json("Invalid Username or Password"),
-            )
-                .into_response(),
+            LogInError::InvalidCredentials => {
+                // Redirect to login page with error message instead of JSON response
+                let error_url = "/login?error=invalid_credentials";
+                let redirect = axum::response::Redirect::to(error_url);
+                let mut response = redirect.into_response();
+                // Add HTMX redirect header if the request is from HTMX
+                response.headers_mut().insert("HX-Redirect", error_url.parse().unwrap());
+                response
+            }
             LogInError::DatabaseError(message) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, Json(message)).into_response()
+                let error_url = &format!("/login?error=database_error");
+                let redirect = axum::response::Redirect::to(error_url);
+                let mut response = redirect.into_response();
+                response.headers_mut().insert("HX-Redirect", error_url.parse().unwrap());
+                response
             }
         }
     }
