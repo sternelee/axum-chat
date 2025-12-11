@@ -16,6 +16,7 @@ mod utils;
 use data::{Database, ChatRepository, DatabaseError};
 mod mcp;
 mod local_agents;
+mod acp;
 
 use crate::middleware::handle_error;
 
