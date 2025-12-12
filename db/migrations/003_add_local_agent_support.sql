@@ -27,12 +27,12 @@ CREATE TABLE providers_new (
     embed_endpoint TEXT,
     image_endpoint TEXT,
     api_key_encrypted TEXT NOT NULL,
-    supports_chat BOOLEAN DEFAULT TRUE,
-    supports_embed BOOLEAN DEFAULT FALSE,
-    supports_image BOOLEAN DEFAULT FALSE,
-    supports_streaming BOOLEAN DEFAULT TRUE,
-    supports_tools BOOLEAN DEFAULT TRUE,
-    supports_images BOOLEAN DEFAULT FALSE,
+    support_chat BOOLEAN DEFAULT TRUE,
+    support_embed BOOLEAN DEFAULT FALSE,
+    support_image BOOLEAN DEFAULT FALSE,
+    support_streaming BOOLEAN DEFAULT TRUE,
+    support_tools BOOLEAN DEFAULT TRUE,
+    support_images BOOLEAN DEFAULT FALSE,
     local_agent_config TEXT, -- JSON configuration for local agents
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -42,13 +42,13 @@ CREATE TABLE providers_new (
 -- Copy data from old table to new table
 INSERT INTO providers_new (
     id, name, provider_type, base_url, chat_endpoint, embed_endpoint, image_endpoint,
-    api_key_encrypted, supports_chat, supports_embed, supports_image, supports_streaming,
-    supports_tools, supports_images, is_active, created_at, updated_at
+    api_key_encrypted, support_chat, support_embed, support_image, support_streaming,
+    support_tools, support_images, is_active, created_at, updated_at
 )
 SELECT
     id, name, provider_type, base_url, chat_endpoint, embed_endpoint, image_endpoint,
-    api_key_encrypted, supports_chat, supports_embed, supports_image, supports_streaming,
-    supports_tools, supports_images, is_active, created_at, updated_at
+    api_key_encrypted, support_chat, support_embed, support_image, support_streaming,
+    support_tools, support_images, is_active, created_at, updated_at
 FROM providers;
 
 -- Drop old table and rename new table
@@ -58,9 +58,9 @@ ALTER TABLE providers_new RENAME TO providers;
 -- Recreate indexes
 CREATE INDEX idx_providers_name ON providers(name);
 CREATE INDEX idx_providers_type ON providers(provider_type);
-CREATE INDEX idx_providers_supports_chat ON providers(supports_chat);
-CREATE INDEX idx_providers_supports_embed ON providers(supports_embed);
-CREATE INDEX idx_providers_supports_image ON providers(supports_image);
+CREATE INDEX idx_providers_support_chat ON providers(support_chat);
+CREATE INDEX idx_providers_support_embed ON providers(support_embed);
+CREATE INDEX idx_providers_support_image ON providers(support_image);
 CREATE INDEX idx_providers_is_active ON providers(is_active, provider_type);
 CREATE INDEX idx_providers_local_agent ON providers(provider_type) WHERE provider_type IN (
     'claude-code', 'gemini-cli', 'codex-cli', 'cursor-cli', 'qwen-code',
@@ -70,7 +70,7 @@ CREATE INDEX idx_providers_local_agent ON providers(provider_type) WHERE provide
 -- Insert default configurations for common local agents if they don't exist
 INSERT OR IGNORE INTO providers (
     name, provider_type, base_url, chat_endpoint, api_key_encrypted,
-    supports_chat, supports_streaming, supports_tools, is_active,
+    support_chat, support_streaming, support_tools, is_active,
     local_agent_config
 ) VALUES
 (

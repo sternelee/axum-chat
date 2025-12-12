@@ -1,0 +1,30 @@
+<!-- provider_picker.html -->
+{% macro provider_picker(providers, selected_provider) %}
+<form>
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title">Choose a Provider for this Chat</h2>
+
+            <div class="form-control">
+                {% for provider in providers %}
+                <label
+                    class="label cursor-pointer border rounded-lg mb-2 p-4 hover:bg-base-200 transition-colors has-[:checked]:border-primary has-[:checked]:bg-base-200">
+                    <div class="flex flex-col">
+                        <span class="label-text font-bold text-lg">{{ provider.name }}</span>
+                        <span class="label-text-alt text-base">{{ provider.provider_type | title }} - {{ provider.base_url }}</span>
+                        {% if provider.support_streaming %}
+                        <span class="badge badge-success badge-sm mt-1">Streaming</span>
+                        {% endif %}
+                        {% if provider.is_local_agent %}
+                        <span class="badge badge-info badge-sm mt-1">Local Agent</span>
+                        {% endif %}
+                    </div>
+                    <input type="radio" name="provider_id" value="{{ provider.id }}" class="radio radio-primary" {% if
+                        provider.id==selected_provider.id %}checked{% endif %} />
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</form>
+{% endmacro %}

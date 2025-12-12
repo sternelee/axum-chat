@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use crate::{
     ai::stream::{generate_sse_stream, GenerationEvent, StreamServiceType},
-    data::model::{ChatMessagePair, AgentWithProvider},
+    data::model::{ChatMessagePair, AgentWithProvider, Provider},
     utils::markdown_to_html_with_user_prefs,
     AppState, User,
 };
@@ -181,25 +181,6 @@ impl IntoResponse for ChatError {
     }
 }
 
-const MODELS: [(&str, &str, &str); 4] = [
-    (
-        "DeepSeek-V3.2-Exp",
-        "deepseek-ai/DeepSeek-V3.2-Exp",
-        "This is the preview version of the GPT-4 model.",
-    ),
-    ("GPT-4", "gpt-4", "Latest generation GPT-4 model."),
-    (
-        "GPT-3.5-16K",
-        "gpt-3.5-turbo-16k",
-        "An enhanced GPT-3.5 model with 16K token limit.",
-    ),
-    (
-        "GPT-3.5",
-        "gpt-3.5-turbo",
-        "Standard GPT-3.5 model with turbo features.",
-    ),
-];
-
 #[axum::debug_handler]
 pub async fn chat(
     State(state): State<Arc<AppState>>,
@@ -211,14 +192,40 @@ pub async fn chat(
         .await
         .unwrap();
 
-    let selected_model = MODELS
-        .iter()
-        .filter(|f| f.1 == "deepseek-ai/DeepSeek-V3.2-Exp")
-        .collect::<Vec<_>>()[0];
+    // Get all active providers for the user to choose from
+    let providers = state.chat_repo.get_all_providers().await.unwrap();
+    let active_providers: Vec<Provider> = providers.iter().filter(|p| p.is_active).cloned().collect();
+
+    // Get all agents for the current user
+    let agents = state.chat_repo.get_agents_by_user(current_user.as_ref().unwrap().id).await.unwrap_or_default();
+
+    // Convert agents to AgentWithProvider format
+    let mut agents_with_providers = Vec::new();
+    for agent in agents {
+        if let Ok(Some(agent_with_provider)) = state.chat_repo.get_agent_with_provider(agent.id).await {
+            agents_with_providers.push(agent_with_provider);
+        }
+    }
+
+    // Select the first active provider as default (or fallback to siliconflow)
+    let selected_provider = match active_providers.first() {
+        Some(provider) => provider.clone(),
+        None => {
+            // Look for siliconflow as fallback
+            if let Some(provider) = providers.iter().find(|p| p.name == "siliconflow") {
+                provider.clone()
+            } else {
+                // Use the first provider as ultimate fallback
+                providers.first().unwrap_or(&providers[0]).clone()
+            }
+        }
+    };
 
     let mut context = Context::new();
-    context.insert("models", &MODELS);
-    context.insert("selected_model", &selected_model);
+    context.insert("agents", &agents_with_providers);
+    context.insert("providers", &active_providers);
+    context.insert("selected_provider", &selected_provider);
+    context.insert("selected_agent", &Option::<AgentWithProvider>::None); // No agent selected initially
     context.insert("user_chats", &user_chats);
     let home = state.tera.render("views/chat.html", &context).unwrap();
 
@@ -233,7 +240,12 @@ pub async fn chat(
 #[derive(Deserialize, Debug)]
 pub struct NewChat {
     message: String,
-    model: String,
+    provider_id: i64,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CreateChatMessage {
+    message: String,
 }
 
 #[axum::debug_handler]
@@ -244,9 +256,14 @@ pub async fn new_chat(
 ) -> Result<Response<String>, ChatError> {
     let current_user = current_user.unwrap();
 
+    // Get the provider to use its name as the model identifier
+    let provider = state.chat_repo.get_provider_by_id(new_chat.provider_id).await
+        .map_err(|_| ChatError::Other)?
+        .ok_or(ChatError::Other)?;
+
     let chat_id = state
         .chat_repo
-        .create_chat(current_user.id, &new_chat.message, &new_chat.model)
+        .create_chat(current_user.id, &new_chat.message, &provider.name)
         .await
         .map_err(|_| ChatError::Other)?;
 
@@ -288,10 +305,23 @@ pub async fn chat_by_id(
         .await
         .unwrap();
 
-    let selected_model = MODELS
-        .iter()
-        .filter(|f| f.1 == chat_message_pairs[0].model)
-        .collect::<Vec<_>>()[0];
+    // Get the provider info for the model used in this chat
+    let providers = state.chat_repo.get_all_providers().await.unwrap();
+    let selected_provider = providers.iter()
+        .find(|p| p.name == chat_message_pairs[0].model)
+        .unwrap_or(&providers[0]);
+
+    // Try to find an agent that matches this chat's model
+    let agents = state.chat_repo.get_agents_by_user(current_user.as_ref().unwrap().id).await.unwrap_or_default();
+    let mut selected_agent = None;
+    for agent in agents {
+        if agent.model_name == chat_message_pairs[0].model {
+            if let Ok(Some(agent_with_provider)) = state.chat_repo.get_agent_with_provider(agent.id).await {
+                selected_agent = Some(agent_with_provider);
+                break;
+            }
+        }
+    }
 
     let user = current_user.as_ref().unwrap();
     let parsed_pairs = chat_message_pairs
@@ -325,7 +355,8 @@ pub async fn chat_by_id(
     context.insert("chat_message_pairs", &parsed_pairs);
     context.insert("chat_id", &chat_id);
     context.insert("user_chats", &user_chats);
-    context.insert("selected_model", &selected_model);
+    context.insert("selected_agent", &selected_agent);
+    context.insert("selected_provider", &selected_provider);
 
     let home = state.tera.render("views/chat.html", &context).unwrap();
 
@@ -372,21 +403,24 @@ pub async fn chat_generate(
     Path(chat_id): Path<i64>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, axum::Error>>>, ChatError> {
+    // Check if user is authenticated
+    let user = current_user.ok_or(ChatError::InvalidAPIKey)?;
+
+    println!("SSE: Starting chat generation for chat_id: {}, user_id: {}", chat_id, user.id);
     let chat_message_pairs = state.chat_repo.retrieve_chat(chat_id).await.unwrap();
-    let user = current_user.unwrap();
 
-    // Create a default agent based on the model from the chat
-    // TODO: In the future, this should be replaced with actual agent selection
-    let model_name = &chat_message_pairs[0].model;
+    // Create a default agent based on the provider from the chat
+    let provider_name = &chat_message_pairs[0].model;
 
-    // Find a default provider for the model (using SiliconFlow as default for now)
-    let default_provider = state.chat_repo.get_provider_by_name("siliconflow").await.unwrap();
-
-    if default_provider.is_none() {
-        return Err(ChatError::Other);
-    }
-
-    let provider = default_provider.unwrap();
+    // Find the provider that was used for this chat
+    let providers = state.chat_repo.get_all_providers().await.unwrap();
+    let provider = if let Some(p) = providers.iter().find(|p| p.name == *provider_name) {
+        p.clone()
+    } else {
+        // Fallback to siliconflow provider
+        state.chat_repo.get_provider_by_name("siliconflow").await.unwrap()
+            .ok_or(ChatError::Other)?
+    };
 
     // Create a temporary agent for backward compatibility
     let agent = AgentWithProvider {
@@ -395,7 +429,7 @@ pub async fn chat_generate(
         name: "Default Agent".to_string(),
         description: Some("Default agent for backward compatibility".to_string()),
         provider,
-        model_name: model_name.clone(),
+        model_name: provider_name.clone(),
         stream: true,
         chat: true,
         embed: false,
@@ -483,13 +517,12 @@ pub async fn chat_generate(
                             Some((Ok(Event::default().data(response_html)), (rc, accumulated)))
                         }
                         GenerationEvent::End(_text) => {
-                            println!("accumulated: {:?}", accumulated);
+                            println!("SSE: Generation completed, accumulated text length: {}", accumulated.len());
 
-                            state_clone
-                                .chat_repo
-                                .add_ai_message_to_pair(lat_message_id, &accumulated)
-                                .await
-                                .unwrap();
+                            match state_clone.chat_repo.add_ai_message_to_pair(lat_message_id, &accumulated).await {
+                                Ok(_) => println!("SSE: Successfully saved message to database"),
+                                Err(e) => println!("SSE: Failed to save message: {:?}", e),
+                            }
 
                             let html = markdown_to_html_with_user_prefs(
                                 &accumulated,
@@ -501,6 +534,7 @@ pub async fn chat_generate(
 
                             // Send final content with a close event
                             let close_event = Event::default().data(html).event("close");
+                            println!("SSE: Sending close event");
 
                             Some((Ok(close_event), (rc, String::new())))
                         }
@@ -508,9 +542,13 @@ pub async fn chat_generate(
                 }
                 Some(Err(e)) => {
                     // Handle error without altering the accumulator
+                    println!("SSE: Stream error: {:?}", e);
                     Some((Err(axum::Error::new(e)), (rc, accumulated)))
                 }
-                None => None, // When the receiver stream ends, finish the stream
+                None => {
+                    println!("SSE: Stream ended");
+                    None // When the receiver stream ends, finish the stream
+                }
             }
         }
     });
@@ -625,4 +663,127 @@ pub async fn approve_all_tools(
     "#, html_escape::encode_text_minimal(&form.tool_name));
 
     Ok(Html(html))
+}
+
+// New routes for creating chats with agent or provider
+#[axum::debug_handler]
+pub async fn create_chat_with_agent(
+    Path(agent_id): Path<i64>,
+    State(state): State<Arc<AppState>>,
+    Extension(current_user): Extension<Option<User>>,
+    Form(form): Form<CreateChatMessage>,
+) -> Result<Response<String>, ChatError> {
+    let current_user = current_user.ok_or(ChatError::InvalidAPIKey)?;
+
+    // Get the agent
+    let agent = state.chat_repo.get_agent_with_provider(agent_id).await
+        .map_err(|_| ChatError::Other)?
+        .ok_or(ChatError::Other)?;
+
+    // Create chat with the agent's model
+    let chat_id = state
+        .chat_repo
+        .create_chat(current_user.id, &form.message, &agent.model_name)
+        .await
+        .map_err(|_| ChatError::Other)?;
+
+    state
+        .chat_repo
+        .add_message_block(chat_id, &form.message)
+        .await
+        .map_err(|_| ChatError::Other)?;
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header("HX-Redirect", format!("/chat/{}", chat_id).as_str())
+        .body("".to_string())
+        .unwrap())
+}
+
+#[axum::debug_handler]
+pub async fn create_chat_with_provider(
+    Path(provider_id): Path<i64>,
+    State(state): State<Arc<AppState>>,
+    Extension(current_user): Extension<Option<User>>,
+    Form(form): Form<CreateChatMessage>,
+) -> Result<Response<String>, ChatError> {
+    let current_user = current_user.ok_or(ChatError::InvalidAPIKey)?;
+
+    // Get the provider
+    let provider = state.chat_repo.get_provider_by_id(provider_id).await
+        .map_err(|_| ChatError::Other)?
+        .ok_or(ChatError::Other)?;
+
+    // Create chat with the provider's name as the model
+    let chat_id = state
+        .chat_repo
+        .create_chat(current_user.id, &form.message, &provider.name)
+        .await
+        .map_err(|_| ChatError::Other)?;
+
+    state
+        .chat_repo
+        .add_message_block(chat_id, &form.message)
+        .await
+        .map_err(|_| ChatError::Other)?;
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header("HX-Redirect", format!("/chat/{}", chat_id).as_str())
+        .body("".to_string())
+        .unwrap())
+}
+
+// Form page for creating chat with agent
+#[axum::debug_handler]
+pub async fn create_chat_with_agent_form(
+    Path(agent_id): Path<i64>,
+    State(state): State<Arc<AppState>>,
+    Extension(current_user): Extension<Option<User>>,
+) -> Html<String> {
+    let current_user = current_user.unwrap();
+
+    // Get the agent
+    let agent = state.chat_repo.get_agent_with_provider(agent_id).await.unwrap().unwrap();
+
+    let mut context = Context::new();
+    context.insert("selected_agent", &agent);
+    context.insert("current_user", &current_user);
+
+    let rendered = state.tera.render("views/create_chat.html", &context).unwrap();
+
+    // Wrap in main template like other routes
+    let mut main_context = Context::new();
+    main_context.insert("view", &rendered);
+    main_context.insert("current_user", &current_user);
+    let final_rendered = state.tera.render("views/main.html", &main_context).unwrap();
+
+    Html(final_rendered)
+}
+
+// Form page for creating chat with provider
+#[axum::debug_handler]
+pub async fn create_chat_with_provider_form(
+    Path(provider_id): Path<i64>,
+    State(state): State<Arc<AppState>>,
+    Extension(current_user): Extension<Option<User>>,
+) -> Html<String> {
+    let current_user = current_user.unwrap();
+
+    // Get the provider
+    let provider = state.chat_repo.get_provider_by_id(provider_id).await.unwrap().unwrap();
+
+    let mut context = Context::new();
+    context.insert("selected_provider", &provider);
+    context.insert("current_user", &current_user);
+
+    let rendered = state.tera.render("views/create_chat.html", &context).unwrap();
+
+    // Wrap in main template like other routes
+    let mut main_context = Context::new();
+    main_context.insert("view", &rendered);
+    main_context.insert("current_user", &current_user);
+    let final_rendered = state.tera.render("views/main.html", &main_context).unwrap();
+
+    Html(final_rendered)
 }

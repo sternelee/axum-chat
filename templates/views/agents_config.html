@@ -306,7 +306,7 @@ let deleteAgentId = null;
 // Load initial data
 async function loadAgents() {
   try {
-    const response = await fetch('/agents/api');
+    const response = await fetch('/api/agents');
     const data = await response.json();
     agents = data.agents || [];
     renderAgents();
@@ -320,9 +320,8 @@ async function loadAgents() {
 
 async function loadProviders() {
   try {
-    const response = await fetch('/agents/api');
-    const data = await response.json();
-    providers = data.providers || [];
+    const response = await fetch('/api/providers');
+    providers = await response.json();
 
     const providerSelect = document.getElementById('agentProvider');
     const filterProvider = document.getElementById('filterProvider');
@@ -348,16 +347,120 @@ async function loadModels() {
 
   if (!providerId) return;
 
+  // Find the provider to check if it has models_endpoint
+  const provider = providers.find(p => p.id.toString() === providerId);
+
+  if (!provider) {
+    modelSelect.innerHTML = '<option value="">Provider not found</option>';
+    return;
+  }
+
+  // Check if provider supports models_endpoint
+  if (!provider.models_endpoint) {
+    modelSelect.innerHTML = '<option value="">This provider does not support model discovery</option>';
+    return;
+  }
+
+  // Show loading state
+  modelSelect.innerHTML = '<option value="">Loading models...</option>';
+
   try {
-    const response = await fetch(`/providers/api/${providerId}/models`);
+    // Try public endpoint first, then fallback to authenticated endpoint
+    const publicUrl = `/api/providers/${providerId}/models`;
+    const privateUrl = `/api/providers/${providerId}/models`;
+
+    console.log('=== FRONTEND MODEL FETCH DEBUG ===');
+    console.log('Provider ID:', providerId);
+    console.log('Provider Name:', provider.name);
+    console.log('Models Endpoint:', provider.models_endpoint);
+    console.log('Public URL:', publicUrl);
+    console.log('Private URL:', privateUrl);
+    console.log('==================================');
+
+    let response;
+    let usedUrl;
+
+    try {
+      console.log('Trying public endpoint first...');
+      response = await fetch(publicUrl);
+      usedUrl = publicUrl;
+      console.log('Public endpoint response:', response.status);
+    } catch (error) {
+      console.log('Public endpoint failed, trying private endpoint...', error);
+      response = await fetch(privateUrl);
+      usedUrl = privateUrl;
+      console.log('Private endpoint response:', response.status);
+    }
+
+    console.log('Final URL Used:', usedUrl);
+    console.log('Response Status:', response.status);
+    console.log('Response Headers:', [...response.headers.entries()]);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log('Error Response Body:', errorText);
+      throw new Error(`HTTP ${response.status}: ${response.statusText} from ${usedUrl}`);
+    }
+
     const models = await response.json();
+    console.log('Models Response:', models);
+    console.log('Models array length:', models.length);
+
+    if (models.length === 0) {
+      modelSelect.innerHTML = '<option value="">No models available for this provider</option>';
+      return;
+    }
+
+    modelSelect.innerHTML = '<option value="">Select Model</option>';
 
     models.forEach(model => {
-      const option = new Option(`${model.display_name} (${model.context_length} tokens)`, model.name);
+      // Create detailed option text with model information
+      let displayText = model.display_name || model.name;
+      let details = [];
+
+      if (model.context_length) {
+        details.push(`${model.context_length.toLocaleString()} tokens`);
+      }
+
+      if (model.pricing && model.pricing.input_price) {
+        details.push(`$${model.pricing.input_price}/1K input`);
+      }
+
+      if (model.pricing && model.pricing.output_price) {
+        details.push(`$${model.pricing.output_price}/1K output`);
+      }
+
+      if (model.support_streaming) {
+        details.push('Streaming');
+      }
+
+      if (model.support_tools) {
+        details.push('Tools');
+      }
+
+      if (model.support_images) {
+        details.push('Vision');
+      }
+
+      const optionText = details.length > 0
+        ? `${displayText} (${details.join(', ')})`
+        : displayText;
+
+      const option = new Option(optionText, model.name);
+
+      // Add additional data as attributes for potential future use
+      option.dataset.contextLength = model.context_length || '';
+      option.dataset.supportsStreaming = model.support_streaming || false;
+      option.dataset.supportsTools = model.support_tools || false;
+      option.dataset.supportsImages = model.support_images || false;
+
       modelSelect.add(option);
     });
+
   } catch (error) {
     console.error('Failed to load models:', error);
+    modelSelect.innerHTML = '<option value="">Failed to load models. Please try again.</option>';
+    showToast('Failed to load models: ' + error.message, 'error');
   }
 }
 
@@ -576,7 +679,7 @@ async function saveAgent() {
   };
 
   try {
-    const url = currentEditingAgent ? `/agents/api/${currentEditingAgent.id}` : '/agents/api';
+    const url = currentEditingAgent ? `/api/agents/${currentEditingAgent.id}` : '/api/agents';
     const method = currentEditingAgent ? 'PUT' : 'POST';
 
     const response = await fetch(url, {
@@ -609,7 +712,7 @@ async function confirmDelete() {
   if (!deleteAgentId) return;
 
   try {
-    const response = await fetch(`/agents/api/${deleteAgentId}`, {
+    const response = await fetch(`/api/agents/${deleteAgentId}`, {
       method: 'DELETE'
     });
 

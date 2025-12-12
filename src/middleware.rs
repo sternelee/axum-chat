@@ -4,7 +4,7 @@ use axum::{
     http::{HeaderValue, Request, StatusCode},
     middleware::Next,
     response::{Html, IntoResponse, Redirect, Response},
-    Extension,
+    Extension, Json,
 };
 
 use tera::Context;
@@ -34,16 +34,20 @@ pub async fn extract_user(
     let id = session.map_or(-1, |x| x.value().parse::<i64>().unwrap_or(-1));
 
     // Get the user
-    match state.db.query(
-        "SELECT users.id, users.email, users.password, users.created_at,
+    match state
+        .db
+        .query(
+            "SELECT users.id, users.email, users.password, users.created_at,
                 settings.openai_api_key,
                 COALESCE(settings.syntax_theme, 'base16-ocean.dark') as syntax_theme,
                 COALESCE(settings.code_line_numbers, 1) as code_line_numbers,
                 COALESCE(settings.code_wrap_lines, 0) as code_wrap_lines,
                 COALESCE(settings.enhanced_markdown, 1) as enhanced_markdown
          FROM users LEFT JOIN settings ON settings.user_id=users.id WHERE users.id = ?",
-        vec![serde_json::Value::Number(id.into())]
-    ).await {
+            vec![serde_json::Value::Number(id.into())],
+        )
+        .await
+    {
         Ok(result) => {
             if let Some(row) = result.rows.first() {
                 let current_user = User {
@@ -52,7 +56,10 @@ pub async fn extract_user(
                     password: row["password"].as_str().unwrap_or("").to_string(),
                     created_at: row["created_at"].as_str().unwrap_or("").to_string(),
                     openai_api_key: row["openai_api_key"].as_str().map(|s| s.to_string()),
-                    syntax_theme: row["syntax_theme"].as_str().unwrap_or("base16-ocean.dark").to_string(),
+                    syntax_theme: row["syntax_theme"]
+                        .as_str()
+                        .unwrap_or("base16-ocean.dark")
+                        .to_string(),
                     code_line_numbers: row["code_line_numbers"].as_bool().unwrap_or(true),
                     code_wrap_lines: row["code_wrap_lines"].as_bool().unwrap_or(false),
                     enhanced_markdown: row["enhanced_markdown"].as_bool().unwrap_or(true),
@@ -76,15 +83,35 @@ pub async fn auth(
     req: Request<Body>,
     next: Next,
 ) -> Response {
-    let to = format!("/error?code={}&message={}", "401", "Log in");
-    let r = Redirect::to(&to);
-    let mut r = r.into_response();
-    let h = r.headers_mut();
-    h.insert("HX-Redirect", HeaderValue::from_str(&to).unwrap());
-
     match current_user {
         Some(_user) => next.run(req).await,
-        _ => error_response(401, "You need to log in to view this page"),
+        _ => {
+            // Check if this is an API request
+            let uri = req.uri().path();
+            let accept_header = req
+                .headers()
+                .get("accept")
+                .map(|v| v.to_str().unwrap_or(""))
+                .unwrap_or("");
+
+            if uri.contains("/api")
+                || accept_header.contains("application/json")
+                || accept_header.contains("text/event-stream")
+            {
+                // Return JSON error for API requests (including SSE)
+                (
+                    StatusCode::UNAUTHORIZED,
+                    axum::Json(serde_json::json!({
+                        "error": "Authentication required",
+                        "message": "You need to log in to access this API"
+                    })),
+                )
+                    .into_response()
+            } else {
+                // Redirect to error page for HTML requests
+                error_response(401, "You need to log in to view this page")
+            }
+        }
     }
 }
 
@@ -124,6 +151,15 @@ pub async fn handle_error(
     req: Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
+    // Store request info before calling next.run
+    let uri = req.uri().path().to_string();
+    let accept_header = req
+        .headers()
+        .get("accept")
+        .map(|v| v.to_str().unwrap_or(""))
+        .unwrap_or("")
+        .to_string();
+
     let response = next.run(req).await;
 
     let status_code = response.status().as_u16();
@@ -131,19 +167,35 @@ pub async fn handle_error(
 
     match status_code {
         _ if status_code >= 400 => {
-            let mut context = Context::new();
-            context.insert("status_code", &status_code);
-            context.insert("status_text", &status_text);
+            // Check if this is an API request - if so, don't convert to HTML
+            let is_api_request = uri.contains("/api")
+                || accept_header.contains("application/json")
+                || response
+                    .headers()
+                    .get("content-type")
+                    .map(|v| v.to_str().unwrap_or(""))
+                    .unwrap_or("")
+                    .contains("application/json");
 
-            let error = state.tera.render("views/error.html", &context).unwrap();
+            if is_api_request {
+                // Return the original response for API requests
+                Ok(response)
+            } else {
+                // Convert to HTML error page for non-API requests
+                let mut context = Context::new();
+                context.insert("status_code", &status_code);
+                context.insert("status_text", &status_text);
 
-            let mut context = Context::new();
-            context.insert("view", &error);
-            context.insert("current_user", &current_user);
-            context.insert("with_footer", &true);
-            let rendered = state.tera.render("views/main.html", &context).unwrap();
-            let h = Html(rendered).into_response();
-            Ok(h)
+                let error = state.tera.render("views/error.html", &context).unwrap();
+
+                let mut context = Context::new();
+                context.insert("view", &error);
+                context.insert("current_user", &current_user);
+                context.insert("with_footer", &false);
+                let rendered = state.tera.render("views/main.html", &context).unwrap();
+                let h = Html(rendered).into_response();
+                Ok(h)
+            }
         }
         _ => Ok(response),
     }

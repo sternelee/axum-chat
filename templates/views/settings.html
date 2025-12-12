@@ -1,26 +1,5 @@
-<div class="min-h-[100vh] pt-[200px] px-4">
+<div class="min-h-[100vh] pt-[100px] px-4">
     <div class="max-w-4xl mx-auto space-y-8">
-        <!-- API Key Section -->
-        <div class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-                <h2 class="card-title text-2xl mb-4">API Settings</h2>
-                <form action="/settings" method="post">
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">OpenAI API Key</span>
-                        </label>
-                        <div class="flex gap-2">
-                            <input name="api_key" type="password" value="{{ openai_api_key }}"
-                                class="input input-bordered flex-1" placeholder="sk-...">
-                            <button type="submit" class="btn btn-primary">
-                                Update API Key
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-
         <!-- Syntax Highlighting Theme Section -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body">

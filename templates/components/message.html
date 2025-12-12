@@ -24,7 +24,7 @@
     </div>
     <script>
       (function () {
-        const eventSource = new EventSource('/chat/{{ chat_id }}/generate');
+        const eventSource = new EventSource('/api/chat/{{ chat_id }}/generate');
         const messageContainer = document.getElementById('message-container');
 
         eventSource.onmessage = function (event) {

@@ -1,0 +1,107 @@
+<div class="min-h-screen flex items-center justify-center bg-base-200">
+    <div class="max-w-md w-full mx-4">
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title flex items-center gap-2">
+                    {% if selected_agent %}
+                        <span class="text-2xl">{{ selected_agent.icon }}</span>
+                        <span>Start Chat with {{ selected_agent.name }}</span>
+                    {% elif selected_provider %}
+                        <span class="text-2xl">
+                            {% if selected_provider.provider_type == "openai" %}
+                            🔮
+                            {% elif selected_provider.provider_type == "anthropic" %}
+                            🧠
+                            {% elif selected_provider.provider_type == "openrouter" %}
+                            🌐
+                            {% elif selected_provider.provider_type == "deepseek" %}
+                            🔍
+                            {% elif selected_provider.provider_type == "gemini" %}
+                            💎
+                            {% elif selected_provider.provider_type == "groq" %}
+                            ⚡
+                            {% elif selected_provider.provider_type == "cohere" %}
+                            🌊
+                            {% elif selected_provider.provider_type == "mistral" %}
+                            🌪️
+                            {% elif selected_provider.provider_type == "azure" %}
+                            ☁️
+                            {% elif selected_provider.provider_type == "huggingface" %}
+                            🤗
+                            {% elif selected_provider.provider_type == "xai" %}
+                            ⭐
+                            {% else %}
+                            🤖
+                            {% endif %}
+                        </span>
+                        <span>Start Chat with {{ selected_provider.name }}</span>
+                    {% endif %}
+                </h2>
+
+                {% if selected_agent %}
+                <div class="text-sm opacity-70 mb-4">
+                    <div class="mb-2"><strong>Provider:</strong> {{ selected_agent.provider.name }}</div>
+                    <div class="mb-2"><strong>Model:</strong> {{ selected_agent.model_name }}</div>
+                    {% if selected_agent.description %}
+                    <div class="mb-2"><strong>Description:</strong> {{ selected_agent.description }}</div>
+                    {% endif %}
+                    <div class="flex gap-1 mb-2">
+                        {% if selected_agent.stream %}
+                        <span class="badge badge-success badge-sm">Streaming</span>
+                        {% endif %}
+                        {% if selected_agent.tool %}
+                        <span class="badge badge-warning badge-sm">Tools</span>
+                        {% endif %}
+                        <span class="badge badge-ghost badge-sm">{{ selected_agent.category }}</span>
+                    </div>
+                </div>
+                {% elif selected_provider %}
+                <div class="text-sm opacity-70 mb-4">
+                    <div class="mb-2"><strong>Type:</strong> {{ selected_provider.provider_type | title }}</div>
+                    <div class="mb-2"><strong>URL:</strong> {{ selected_provider.base_url }}</div>
+                    <div class="flex gap-1 mb-2">
+                        {% if selected_provider.support_chat %}
+                        <span class="badge badge-success badge-sm">Chat</span>
+                        {% endif %}
+                        {% if selected_provider.support_streaming %}
+                        <span class="badge badge-info badge-sm">Streaming</span>
+                        {% endif %}
+                        {% if selected_provider.support_tools %}
+                        <span class="badge badge-warning badge-sm">Tools</span>
+                        {% endif %}
+                        {% if selected_provider.support_images %}
+                        <span class="badge badge-accent badge-sm">Images</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if selected_agent %}
+                <form method="post" action="/chat/agent/{{ selected_agent.id }}">
+                {% elif selected_provider %}
+                <form method="post" action="/chat/provider/{{ selected_provider.id }}">
+                {% endif %}
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">First Message</span>
+                        </label>
+                        <textarea name="message" class="textarea textarea-bordered h-24"
+                                  placeholder="What would you like to talk about?" required></textarea>
+                        <label class="label">
+                            <span class="label-text-alt">This will be the first message in your chat</span>
+                        </label>
+                    </div>
+                    <div class="card-actions justify-end mt-6">
+                        <a href="/chat" class="btn btn-ghost">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            Start Chat
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 ml-1">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

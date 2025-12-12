@@ -489,19 +489,19 @@ pub async fn generate_sse_stream(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match service_type {
         StreamServiceType::Chat => {
-            if !agent.provider.supports_chat {
+            if !agent.provider.support_chat {
                 return Err("Provider does not support chat services".into());
             }
             generate_chat_stream(agent, messages, sender).await
         }
         StreamServiceType::Embedding => {
-            if !agent.provider.supports_embed {
+            if !agent.provider.support_embed {
                 return Err("Provider does not support embedding services".into());
             }
             generate_embeddings(agent, messages, sender).await
         }
         StreamServiceType::ImageGeneration => {
-            if !agent.provider.supports_image {
+            if !agent.provider.support_image {
                 return Err("Provider does not support image generation services".into());
             }
             generate_image_generation(agent, messages, sender).await
@@ -1255,12 +1255,12 @@ mod tests {
                 embed_endpoint: Some("/embeddings".to_string()),
                 image_endpoint: Some("/images/generations".to_string()),
                 api_key_encrypted: "test_key".to_string(),
-                supports_chat: true,
-                supports_embed: false,
-                supports_image: false,
-                supports_streaming: true,
-                supports_tools: true,
-                supports_images: false,
+                support_chat: true,
+                support_embed: false,
+                support_image: false,
+                support_streaming: true,
+                support_tools: true,
+                support_images: false,
                 is_active: true,
                 created_at: chrono::Utc::now().to_rfc3339(),
                 updated_at: chrono::Utc::now().to_rfc3339(),
@@ -1336,12 +1336,12 @@ mod tests {
                 embed_endpoint: Some("/models/{model}:embedContent".to_string()),
                 image_endpoint: None,
                 api_key_encrypted: "test_gemini_key".to_string(),
-                supports_chat: true,
-                supports_embed: false,
-                supports_image: false,
-                supports_streaming: true,
-                supports_tools: true,
-                supports_images: false,
+                support_chat: true,
+                support_embed: false,
+                support_image: false,
+                support_streaming: true,
+                support_tools: true,
+                support_images: false,
                 is_active: true,
                 created_at: chrono::Utc::now().to_rfc3339(),
                 updated_at: chrono::Utc::now().to_rfc3339(),

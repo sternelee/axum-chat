@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tera::Context;
 
 use crate::data::model::{
-    AgentWithProvider, CreateAgentRequest, ProviderModel, UpdateAgentRequest,
+    AgentWithProvider, CreateAgentRequest, UpdateAgentRequest,
 };
 use crate::{User, middleware::internal_error};
 
@@ -35,9 +35,13 @@ pub async fn agents_list(
 
 pub async fn api_agents_list(
     State(state): State<Arc<crate::AppState>>,
+    Extension(current_user): Extension<Option<crate::User>>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    // TODO: Get user ID from authentication
-    let user_id = 1; // Placeholder
+    // Get user ID from authentication
+    let user_id = match current_user {
+        Some(user) => user.id,
+        None => return Err((StatusCode::UNAUTHORIZED, "Authentication required".to_string())),
+    };
 
     let agents = state.chat_repo.get_agents_by_user(user_id).await.map_err(internal_error)?;
     let providers = state.chat_repo.get_all_providers().await.map_err(internal_error)?;
@@ -70,17 +74,49 @@ pub async fn api_get_agent(
 
 pub async fn api_create_agent(
     State(state): State<Arc<crate::AppState>>,
+    Extension(current_user): Extension<Option<crate::User>>,
     Json(request): Json<CreateAgentRequest>,
 ) -> Result<(StatusCode, Json<Value>), (StatusCode, String)> {
-    // TODO: Get user ID from authentication
-    let user_id = 1; // Placeholder
+    // Get user ID from authentication
+    let user_id = match current_user {
+        Some(user) => user.id,
+        None => return Err((StatusCode::UNAUTHORIZED, "Authentication required".to_string())),
+    };
+
+    eprintln!("=== AGENT CREATION DEBUG ===");
+    eprintln!("User ID: {}", user_id);
+    eprintln!("Agent Name: {}", request.name);
+    eprintln!("Provider ID: {}", request.provider_id);
+    eprintln!("Model Name: {}", request.model_name);
+    eprintln!("=============================");
+
+    // First check if the provider exists
+    match state.chat_repo.get_provider_by_id(request.provider_id).await {
+        Ok(Some(provider)) => {
+            eprintln!("Provider found: {} ({})", provider.name, provider.id);
+        }
+        Ok(None) => {
+            eprintln!("ERROR: Provider with ID {} does not exist!", request.provider_id);
+            return Err((StatusCode::BAD_REQUEST, format!("Provider with ID {} does not exist", request.provider_id)));
+        }
+        Err(e) => {
+            eprintln!("ERROR: Failed to check provider existence: {}", e);
+            return Err(internal_error(e));
+        }
+    }
 
     match state.chat_repo.create_agent(user_id, request).await {
-        Ok(id) => Ok((
-            StatusCode::CREATED,
-            Json(json!({ "message": "Agent created successfully", "id": id })),
-        )),
-        Err(e) => Err(internal_error(e)),
+        Ok(id) => {
+            eprintln!("Agent created successfully with ID: {}", id);
+            Ok((
+                StatusCode::CREATED,
+                Json(json!({ "message": "Agent created successfully", "id": id })),
+            ))
+        },
+        Err(e) => {
+            eprintln!("ERROR: Failed to create agent: {}", e);
+            Err(internal_error(e))
+        },
     }
 }
 
@@ -107,10 +143,4 @@ pub async fn api_delete_agent(
     }
 }
 
-pub async fn api_provider_models(
-    AxumPath(provider_id): AxumPath<i64>,
-    State(state): State<Arc<crate::AppState>>,
-) -> Result<Json<Vec<ProviderModel>>, (StatusCode, String)> {
-    let models = state.chat_repo.get_models_by_provider(provider_id).await.map_err(internal_error)?;
-    Ok(Json(models))
-}
+

@@ -7,12 +7,12 @@ ALTER TABLE providers ADD COLUMN embed_endpoint TEXT;
 ALTER TABLE providers ADD COLUMN image_endpoint TEXT;
 
 -- Add capability flags
-ALTER TABLE providers ADD COLUMN supports_chat BOOLEAN DEFAULT TRUE;
-ALTER TABLE providers ADD COLUMN supports_embed BOOLEAN DEFAULT FALSE;
-ALTER TABLE providers ADD COLUMN supports_image BOOLEAN DEFAULT FALSE;
-ALTER TABLE providers ADD COLUMN supports_streaming BOOLEAN DEFAULT TRUE;
-ALTER TABLE providers ADD COLUMN supports_tools BOOLEAN DEFAULT TRUE;
-ALTER TABLE providers ADD COLUMN supports_images BOOLEAN DEFAULT FALSE;
+ALTER TABLE providers ADD COLUMN support_chat BOOLEAN DEFAULT TRUE;
+ALTER TABLE providers ADD COLUMN support_embed BOOLEAN DEFAULT FALSE;
+ALTER TABLE providers ADD COLUMN support_image BOOLEAN DEFAULT FALSE;
+ALTER TABLE providers ADD COLUMN support_streaming BOOLEAN DEFAULT TRUE;
+ALTER TABLE providers ADD COLUMN support_tools BOOLEAN DEFAULT TRUE;
+ALTER TABLE providers ADD COLUMN support_images BOOLEAN DEFAULT FALSE;
 
 -- Update existing providers with default endpoints and capabilities
 UPDATE providers SET
@@ -47,29 +47,29 @@ UPDATE providers SET
         WHEN 'azure' THEN '/images/generations?api-version=2024-02-15-preview'
         ELSE NULL
     END,
-    supports_chat = CASE provider_type
+    support_chat = CASE provider_type
         WHEN 'dalle' OR 'midjourney' OR 'stability' OR 'openai-embed' OR 'cohere-embed' OR 'huggingface-embed' THEN FALSE
         ELSE TRUE
     END,
-    supports_embed = CASE provider_type
+    support_embed = CASE provider_type
         WHEN 'openai-embed' OR 'cohere-embed' OR 'huggingface-embed' THEN TRUE
         WHEN 'openai' OR 'openrouter' OR 'deepseek' OR 'azure' OR 'cohere' OR 'mistral' OR 'gemini' OR 'huggingface' THEN TRUE
         ELSE FALSE
     END,
-    supports_image = CASE provider_type
+    support_image = CASE provider_type
         WHEN 'dalle' OR 'midjourney' OR 'stability' THEN TRUE
         WHEN 'openai' OR 'openrouter' OR 'azure' THEN TRUE
         ELSE FALSE
     END,
-    supports_streaming = CASE provider_type
+    support_streaming = CASE provider_type
         WHEN 'dalle' OR 'midjourney' OR 'stability' OR 'openai-embed' OR 'cohere-embed' OR 'huggingface-embed' THEN FALSE
         ELSE TRUE
     END,
-    supports_tools = CASE provider_type
+    support_tools = CASE provider_type
         WHEN 'dalle' OR 'midjourney' OR 'stability' OR 'openai-embed' OR 'cohere-embed' OR 'huggingface-embed' OR 'xai' OR 'huggingface' THEN FALSE
         ELSE TRUE
     END,
-    supports_images = CASE provider_type
+    support_images = CASE provider_type
         WHEN 'deepseek' OR 'cohere' OR 'groq' OR 'mistral' OR 'huggingface' OR 'openai-embed' OR 'cohere-embed' OR 'huggingface-embed' THEN FALSE
         ELSE TRUE
     END;
@@ -78,11 +78,11 @@ UPDATE providers SET
 -- Convert DALL-E 3 providers to OpenAI providers with image generation capability
 UPDATE providers SET
     provider_type = 'openai',
-    supports_chat = TRUE,
-    supports_embed = TRUE,
-    supports_image = TRUE,
-    supports_tools = TRUE,
-    supports_streaming = TRUE
+    support_chat = TRUE,
+    support_embed = TRUE,
+    support_image = TRUE,
+    support_tools = TRUE,
+    support_streaming = TRUE
 WHERE provider_type = 'dalle';
 
 -- Convert Midjourney providers (this would need special handling as Midjourney has different API)
@@ -95,47 +95,47 @@ WHERE provider_type = 'midjourney';
 -- Convert Stability AI providers
 UPDATE providers SET
     provider_type = 'openrouter',
-    supports_chat = FALSE,
-    supports_embed = FALSE,
-    supports_image = TRUE,
-    supports_tools = FALSE,
-    supports_streaming = FALSE,
+    support_chat = FALSE,
+    support_embed = FALSE,
+    support_image = TRUE,
+    support_tools = FALSE,
+    support_streaming = FALSE,
     name = name || ' (Stability AI via OpenRouter)'
 WHERE provider_type = 'stability';
 
 -- Convert embedding providers to their chat counterparts
 UPDATE providers SET
     provider_type = 'openai',
-    supports_chat = TRUE,
-    supports_embed = TRUE,
-    supports_image = TRUE,
-    supports_tools = TRUE,
-    supports_streaming = TRUE,
+    support_chat = TRUE,
+    support_embed = TRUE,
+    support_image = TRUE,
+    support_tools = TRUE,
+    support_streaming = TRUE,
     name = name || ' (Multi-service)'
 WHERE provider_type = 'openai-embed';
 
 UPDATE providers SET
     provider_type = 'cohere',
-    supports_chat = TRUE,
-    supports_embed = TRUE,
-    supports_image = FALSE,
-    supports_tools = TRUE,
-    supports_streaming = TRUE,
+    support_chat = TRUE,
+    support_embed = TRUE,
+    support_image = FALSE,
+    support_tools = TRUE,
+    support_streaming = TRUE,
     name = name || ' (Multi-service)'
 WHERE provider_type = 'cohere-embed';
 
 UPDATE providers SET
     provider_type = 'huggingface',
-    supports_chat = TRUE,
-    supports_embed = TRUE,
-    supports_image = FALSE,
-    supports_tools = FALSE,
-    supports_streaming = TRUE,
+    support_chat = TRUE,
+    support_embed = TRUE,
+    support_image = FALSE,
+    support_tools = FALSE,
+    support_streaming = TRUE,
     name = name || ' (Multi-service)'
 WHERE provider_type = 'huggingface-embed';
 
 -- Create indexes for performance
-CREATE INDEX idx_providers_supports_chat ON providers(supports_chat);
-CREATE INDEX idx_providers_supports_embed ON providers(supports_embed);
-CREATE INDEX idx_providers_supports_image ON providers(supports_image);
+CREATE INDEX idx_providers_support_chat ON providers(support_chat);
+CREATE INDEX idx_providers_support_embed ON providers(support_embed);
+CREATE INDEX idx_providers_support_image ON providers(support_image);
 CREATE INDEX idx_providers_is_active ON providers(is_active, provider_type);

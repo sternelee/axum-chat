@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tera::Context;
 
 use crate::data::model::{
-    CreateProviderRequest, Provider, UpdateProviderRequest,
+    CreateProviderRequest, Provider, UpdateProviderRequest, ProviderModelInfo,
 };
 use crate::{User, middleware::internal_error};
 
@@ -83,6 +83,49 @@ pub async fn api_delete_provider(
     match state.chat_repo.delete_provider(id).await {
         Ok(rows) if rows > 0 => Ok(Json(json!({ "message": "Provider deleted successfully" }))),
         Ok(_) => Err((StatusCode::NOT_FOUND, "Provider not found".to_string())),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => {
+            // Check if this is a foreign key constraint error
+            let error_msg = e.to_string();
+            if error_msg.contains("agents depend on this provider") {
+                // Return a more specific error for foreign key constraint
+                Err((StatusCode::CONFLICT, error_msg))
+            } else {
+                Err(internal_error(e))
+            }
+        },
+    }
+}
+
+pub async fn api_get_provider_models(
+    AxumPath(id): AxumPath<i64>,
+    State(state): State<Arc<crate::AppState>>,
+) -> Result<Json<Vec<ProviderModelInfo>>, (StatusCode, String)> {
+    eprintln!("=== API ENDPOINT CALLED ===");
+    eprintln!("Provider ID requested: {}", id);
+    eprintln!("==========================");
+
+    // Get the provider
+    let provider = state.chat_repo.get_provider_by_id(id).await.map_err(internal_error)?;
+    let provider = match provider {
+        Some(p) => p,
+        None => {
+            eprintln!("Provider with ID {} not found", id);
+            return Err((StatusCode::NOT_FOUND, "Provider not found".to_string()));
+        }
+    };
+
+    eprintln!("Found provider: {} ({})", provider.name, provider.provider_type);
+
+    // Fetch models from the provider
+    match state.chat_repo.fetch_models_from_provider(&provider).await {
+        Ok(models) => {
+            eprintln!("Successfully fetched {} models", models.len());
+            Ok(Json(models))
+        },
+        Err(e) => {
+            eprintln!("Error fetching models from provider {}: {}", provider.name, e);
+            // Return empty list instead of error to avoid breaking the UI
+            Ok(Json(vec![]))
+        }
     }
 }

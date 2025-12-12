@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {
@@ -28,23 +29,26 @@ pub struct ChatMessagePair {
     pub block_size: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Provider {
     pub id: i64,
+    pub uuid: Option<Uuid>, // UUID for the provider (new field)
     pub name: String,
     pub provider_type: ProviderType,
     pub base_url: String,
     pub chat_endpoint: Option<String>,
     pub embed_endpoint: Option<String>,
     pub image_endpoint: Option<String>,
+    pub models_endpoint: Option<String>, // API endpoint to fetch available models
     pub api_key_encrypted: String,
-    pub supports_chat: bool,
-    pub supports_embed: bool,
-    pub supports_image: bool,
-    pub supports_streaming: bool,
-    pub supports_tools: bool,
-    pub supports_images: bool,
+    pub support_chat: bool,
+    pub support_embed: bool,
+    pub support_image: bool,
+    pub support_streaming: bool,
+    pub support_tools: bool,
+    pub support_images: bool,
     pub is_active: bool,
+    pub is_legacy_id: bool, // Flag to indicate if this is using legacy integer ID
     pub created_at: String, // SQLite timestamp as string
     pub updated_at: String, // SQLite timestamp as string
     // Local agent specific fields (stored as JSON)
@@ -196,7 +200,9 @@ impl ProviderType {
             ProviderType::OpenAI => "https://api.openai.com/v1",
             ProviderType::OpenRouter => "https://openrouter.ai/api/v1",
             ProviderType::DeepSeek => "https://api.deepseek.com/v1",
-            ProviderType::AzureOpenAI => "https://your-resource.openai.azure.com/openai/deployments/your-deployment",
+            ProviderType::AzureOpenAI => {
+                "https://your-resource.openai.azure.com/openai/deployments/your-deployment"
+            }
             ProviderType::Anthropic => "https://api.anthropic.com/v1",
             ProviderType::Cohere => "https://api.cohere.ai/v1",
             ProviderType::Groq => "https://api.groq.com/openai/v1",
@@ -225,56 +231,67 @@ impl ProviderType {
                 chat: Some("/chat/completions".to_string()),
                 embed: Some("/embeddings".to_string()),
                 image: Some("/images/generations".to_string()),
+                models: Some("/models".to_string()),
             },
             ProviderType::OpenRouter => ProviderEndpoints {
                 chat: Some("/chat/completions".to_string()),
                 embed: Some("/embeddings".to_string()),
                 image: Some("/images/generations".to_string()),
+                models: Some("/models".to_string()),
             },
             ProviderType::DeepSeek => ProviderEndpoints {
                 chat: Some("/chat/completions".to_string()),
                 embed: Some("/embeddings".to_string()),
                 image: None,
+                models: Some("/models".to_string()),
             },
             ProviderType::AzureOpenAI => ProviderEndpoints {
                 chat: Some("/chat/completions?api-version=2024-02-15-preview".to_string()),
                 embed: Some("/embeddings?api-version=2024-02-15-preview".to_string()),
                 image: Some("/images/generations?api-version=2024-02-15-preview".to_string()),
+                models: Some("/models?api-version=2024-02-15-preview".to_string()),
             },
             ProviderType::Anthropic => ProviderEndpoints {
                 chat: Some("/messages".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/models".to_string()),
             },
             ProviderType::Cohere => ProviderEndpoints {
                 chat: Some("/chat".to_string()),
                 embed: Some("/embed".to_string()),
                 image: None,
+                models: Some("/models".to_string()),
             },
             ProviderType::Groq => ProviderEndpoints {
                 chat: Some("/chat/completions".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/models".to_string()),
             },
             ProviderType::MistralAI => ProviderEndpoints {
                 chat: Some("/chat/completions".to_string()),
                 embed: Some("/embeddings".to_string()),
                 image: None,
+                models: Some("/models".to_string()),
             },
             ProviderType::Gemini => ProviderEndpoints {
                 chat: Some("/models/{model}:generateContent".to_string()),
                 embed: Some("/models/{model}:embedContent".to_string()),
                 image: None,
+                models: Some("/models".to_string()),
             },
             ProviderType::HuggingFace => ProviderEndpoints {
                 chat: Some("/models/{model}/v1/chat/completions".to_string()),
                 embed: Some("/pipeline/feature-extraction".to_string()),
                 image: None,
+                models: Some("/models".to_string()),
             },
             ProviderType::XAI => ProviderEndpoints {
                 chat: Some("/chat/completions".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/models".to_string()),
             },
 
             // Local AI coding agents - typically support chat and code generation
@@ -282,51 +299,61 @@ impl ProviderType {
                 chat: Some("/api/v1/chat".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/api/v1/models".to_string()),
             },
             ProviderType::GeminiCLI => ProviderEndpoints {
                 chat: Some("/v1/chat".to_string()),
                 embed: Some("/v1/embed".to_string()),
                 image: None,
+                models: Some("/v1/models".to_string()),
             },
             ProviderType::CodexCLI => ProviderEndpoints {
                 chat: Some("/v1/engines/codex/completions".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/v1/engines".to_string()),
             },
             ProviderType::CursorCLI => ProviderEndpoints {
                 chat: Some("/v1/chat".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/v1/models".to_string()),
             },
             ProviderType::QwenCode => ProviderEndpoints {
                 chat: Some("/api/v1/chat".to_string()),
                 embed: Some("/api/v1/embed".to_string()),
                 image: None,
+                models: Some("/api/v1/models".to_string()),
             },
             ProviderType::ZAIGLM => ProviderEndpoints {
                 chat: Some("/v1/chat/completions".to_string()),
                 embed: Some("/v1/embeddings".to_string()),
                 image: None,
+                models: Some("/v1/models".to_string()),
             },
             ProviderType::Aider => ProviderEndpoints {
                 chat: Some("/v1/chat".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/v1/models".to_string()),
             },
             ProviderType::CodeiumChat => ProviderEndpoints {
                 chat: Some("/v1/chat".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/v1/models".to_string()),
             },
             ProviderType::CopilotCLI => ProviderEndpoints {
                 chat: Some("/v1/copilot".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/v1/models".to_string()),
             },
             ProviderType::Tabnine => ProviderEndpoints {
                 chat: Some("/v1/chat".to_string()),
                 embed: None,
                 image: None,
+                models: Some("/v1/models".to_string()),
             },
         }
     }
@@ -337,6 +364,7 @@ pub struct ProviderEndpoints {
     pub chat: Option<String>,
     pub embed: Option<String>,
     pub image: Option<String>,
+    pub models: Option<String>,
 }
 
 // Local AI Agent specific configuration
@@ -351,7 +379,7 @@ pub struct LocalAgentConfig {
     pub auto_restart: bool,
     pub max_restarts: u32,
     pub startup_timeout: u64, // seconds
-    pub request_timeout: u64,  // seconds
+    pub request_timeout: u64, // seconds
 }
 
 impl Default for LocalAgentConfig {
@@ -398,20 +426,107 @@ pub struct ProviderModel {
     pub created_at: String, // SQLite timestamp as string
 }
 
+// Models for API responses from provider model endpoints
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OpenAIModel {
+    pub id: String,
+    pub object: String,
+    pub created: u64,
+    pub owned_by: Option<String>,
+    // OpenRouter additional fields
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub context_length: Option<i64>,
+    pub pricing: Option<OpenRouterPricing>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OpenRouterPricing {
+    pub prompt: Option<String>,
+    pub completion: Option<String>,
+    pub request: Option<String>,
+    pub image: Option<String>,
+    pub web_search: Option<String>,
+    pub internal_reasoning: Option<String>,
+    pub input_cache_read: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OpenAIModelResponse {
+    pub object: String,
+    pub data: Vec<OpenAIModel>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AnthropicModel {
+    pub id: String,
+    pub object: String,
+    pub created_at: String,
+    pub display_name: String,
+    pub type_: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AnthropicModelResponse {
+    pub data: Vec<AnthropicModel>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProviderModelInfo {
+    pub id: String,
+    pub name: String,
+    pub display_name: String,
+    pub context_length: Option<i64>,
+    pub max_tokens: Option<i64>,
+    pub support_chat: bool,
+    pub support_streaming: bool,
+    pub support_images: bool,
+    pub support_tools: bool,
+    pub pricing: Option<ModelPricing>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModelPricing {
+    pub input_price: Option<f64>,
+    pub output_price: Option<f64>,
+    pub currency: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GeminiModel {
+    pub name: String,
+    pub version: String,
+    pub display_name: String,
+    pub description: Option<String>,
+    pub input_token_limit: Option<i64>,
+    pub output_token_limit: Option<i64>,
+    pub supported_generation_methods: Vec<String>,
+    pub temperature_range: Option<Vec<f64>>,
+    pub top_p_range: Option<Vec<f64>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GeminiModelResponse {
+    pub models: Vec<GeminiModel>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Agent {
     pub id: i64,
+    pub uuid: Option<Uuid>, // UUID for the agent (new field)
     pub user_id: i64,
+    pub user_uuid: Option<Uuid>, // UUID for the user (new field)
     pub name: String,
     pub description: Option<String>,
     pub provider_id: i64,
+    pub provider_uuid: Option<Uuid>, // UUID for the provider (new field)
     pub model_name: String,
     pub stream: bool,
     pub chat: bool,
     pub embed: bool,
     pub image: bool,
     pub tool: bool,
-    pub tools: String, // JSON array
+    pub tools: String,       // JSON array
     pub allow_tools: String, // JSON array of auto-approved tool IDs
     pub system_prompt: Option<String>,
     pub top_p: f64,
@@ -425,6 +540,7 @@ pub struct Agent {
     pub icon: String,
     pub category: String,
     pub public: bool,
+    pub is_legacy_id: bool, // Flag to indicate if this is using legacy integer ID
     pub is_active: bool,
     pub created_at: String, // SQLite timestamp as string
     pub updated_at: String, // SQLite timestamp as string
@@ -440,12 +556,13 @@ pub struct CreateProviderRequest {
     pub chat_endpoint: Option<String>,
     pub embed_endpoint: Option<String>,
     pub image_endpoint: Option<String>,
-    pub supports_chat: Option<bool>,
-    pub supports_embed: Option<bool>,
-    pub supports_image: Option<bool>,
-    pub supports_streaming: Option<bool>,
-    pub supports_tools: Option<bool>,
-    pub supports_images: Option<bool>,
+    pub models_endpoint: Option<String>,
+    pub support_chat: Option<bool>,
+    pub support_embed: Option<bool>,
+    pub support_image: Option<bool>,
+    pub support_streaming: Option<bool>,
+    pub support_tools: Option<bool>,
+    pub support_images: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -456,12 +573,13 @@ pub struct UpdateProviderRequest {
     pub chat_endpoint: Option<String>,
     pub embed_endpoint: Option<String>,
     pub image_endpoint: Option<String>,
-    pub supports_chat: Option<bool>,
-    pub supports_embed: Option<bool>,
-    pub supports_image: Option<bool>,
-    pub supports_streaming: Option<bool>,
-    pub supports_tools: Option<bool>,
-    pub supports_images: Option<bool>,
+    pub models_endpoint: Option<String>,
+    pub support_chat: Option<bool>,
+    pub support_embed: Option<bool>,
+    pub support_image: Option<bool>,
+    pub support_streaming: Option<bool>,
+    pub support_tools: Option<bool>,
+    pub support_images: Option<bool>,
     pub is_active: Option<bool>,
 }
 
@@ -581,9 +699,14 @@ impl ChatMessagePair {
         Ok(ChatMessagePair {
             id: row["id"].as_i64().ok_or("Missing id")?,
             model: row["model"].as_str().ok_or("Missing model")?.to_string(),
-            message_block_id: row["message_block_id"].as_i64().ok_or("Missing message_block_id")?,
+            message_block_id: row["message_block_id"]
+                .as_i64()
+                .ok_or("Missing message_block_id")?,
             chat_id: row["chat_id"].as_i64().ok_or("Missing chat_id")?,
-            human_message: row["human_message"].as_str().ok_or("Missing human_message")?.to_string(),
+            human_message: row["human_message"]
+                .as_str()
+                .ok_or("Missing human_message")?
+                .to_string(),
             ai_message: row["ai_message"].as_str().map(|s| s.to_string()),
             block_rank: row["block_rank"].as_i64().ok_or("Missing block_rank")?,
             block_size: row["block_size"].as_i64().ok_or("Missing block_size")?,
@@ -593,25 +716,54 @@ impl ChatMessagePair {
 
 impl Provider {
     pub fn from_json_row(row: &serde_json::Value) -> Result<Self, String> {
-        let provider_type_str = row["provider_type"].as_str().ok_or("Missing provider_type")?;
+        let provider_type_str = row["provider_type"]
+            .as_str()
+            .ok_or("Missing provider_type")?;
+
+        // Parse UUID field (new column, may be null for legacy records)
+        let uuid = row["uuid"].as_str().and_then(|s| Uuid::parse_str(s).ok());
+
+        // Parse is_legacy_id field (defaults to true for backward compatibility)
+        let is_legacy_id = row["is_legacy_id"]
+            .as_bool()
+            .unwrap_or(true); // Default to true for existing records
+
         Ok(Provider {
             id: row["id"].as_i64().ok_or("Missing id")?,
+            uuid,
             name: row["name"].as_str().ok_or("Missing name")?.to_string(),
             provider_type: ProviderType::from_string(provider_type_str),
-            base_url: row["base_url"].as_str().ok_or("Missing base_url")?.to_string(),
+            base_url: row["base_url"]
+                .as_str()
+                .ok_or("Missing base_url")?
+                .to_string(),
             chat_endpoint: row["chat_endpoint"].as_str().map(|s| s.to_string()),
             embed_endpoint: row["embed_endpoint"].as_str().map(|s| s.to_string()),
             image_endpoint: row["image_endpoint"].as_str().map(|s| s.to_string()),
-            api_key_encrypted: row["api_key_encrypted"].as_str().ok_or("Missing api_key_encrypted")?.to_string(),
-            supports_chat: row["supports_chat"].as_bool().unwrap_or(true),
-            supports_embed: row["supports_embed"].as_bool().unwrap_or(false),
-            supports_image: row["supports_image"].as_bool().unwrap_or(false),
-            supports_streaming: row["supports_streaming"].as_bool().unwrap_or(true),
-            supports_tools: row["supports_tools"].as_bool().unwrap_or(false),
-            supports_images: row["supports_images"].as_bool().unwrap_or(false),
-            is_active: row["is_active"].as_bool().ok_or("Missing is_active")?,
-            created_at: row["created_at"].as_str().ok_or("Missing created_at")?.to_string(),
-            updated_at: row["updated_at"].as_str().ok_or("Missing updated_at")?.to_string(),
+            models_endpoint: row["models_endpoint"].as_str().map(|s| s.to_string()),
+            api_key_encrypted: row["api_key_encrypted"]
+                .as_str()
+                .ok_or("Missing api_key_encrypted")?
+                .to_string(),
+            support_chat: row["support_chat"].as_bool().unwrap_or(true),
+            support_embed: row["support_embed"].as_bool().unwrap_or(false),
+            support_image: row["support_image"].as_bool().unwrap_or(false),
+            support_streaming: row["support_streaming"].as_bool().unwrap_or(true),
+            support_tools: row["support_tools"].as_bool().unwrap_or(false),
+            support_images: row["support_images"].as_bool().unwrap_or(false),
+            is_active: row["is_active"]
+                .as_bool()
+                .or_else(|| row["is_active"].as_i64().map(|i| i != 0))
+                .ok_or("Missing is_active")?,
+            is_legacy_id,
+            created_at: row["created_at"]
+                .as_str()
+                .ok_or("Missing created_at")?
+                .to_string(),
+            updated_at: row["updated_at"]
+                .as_str()
+                .ok_or("Missing updated_at")?
+                .to_string(),
             local_agent_config: row["local_agent_config"].as_str().map(|s| s.to_string()),
         })
     }
@@ -620,24 +772,24 @@ impl Provider {
     pub fn is_local_agent(&self) -> bool {
         matches!(
             self.provider_type,
-            ProviderType::ClaudeCode |
-                ProviderType::GeminiCLI |
-                ProviderType::CodexCLI |
-                ProviderType::CursorCLI |
-                ProviderType::QwenCode |
-                ProviderType::ZAIGLM |
-                ProviderType::Aider |
-                ProviderType::CodeiumChat |
-                ProviderType::CopilotCLI |
-                ProviderType::Tabnine
+            ProviderType::ClaudeCode
+                | ProviderType::GeminiCLI
+                | ProviderType::CodexCLI
+                | ProviderType::CursorCLI
+                | ProviderType::QwenCode
+                | ProviderType::ZAIGLM
+                | ProviderType::Aider
+                | ProviderType::CodeiumChat
+                | ProviderType::CopilotCLI
+                | ProviderType::Tabnine
         )
     }
 
     /// Get the local agent configuration if this is a local agent
     pub fn get_local_agent_config(&self) -> Option<LocalAgentConfig> {
-        self.local_agent_config.as_ref().and_then(|config_str| {
-            serde_json::from_str(config_str).ok()
-        })
+        self.local_agent_config
+            .as_ref()
+            .and_then(|config_str| serde_json::from_str(config_str).ok())
     }
 
     /// Set the local agent configuration
@@ -655,48 +807,122 @@ impl ProviderModel {
             id: row["id"].as_i64().ok_or("Missing id")?,
             provider_id: row["provider_id"].as_i64().ok_or("Missing provider_id")?,
             name: row["name"].as_str().ok_or("Missing name")?.to_string(),
-            display_name: row["display_name"].as_str().ok_or("Missing display_name")?.to_string(),
-            context_length: row["context_length"].as_i64().ok_or("Missing context_length")?,
+            display_name: row["display_name"]
+                .as_str()
+                .ok_or("Missing display_name")?
+                .to_string(),
+            context_length: row["context_length"]
+                .as_i64()
+                .ok_or("Missing context_length")?,
             input_price: row["input_price"].as_f64(),
             output_price: row["output_price"].as_f64(),
-            capabilities: row["capabilities"].as_str().ok_or("Missing capabilities")?.to_string(),
-            is_active: row["is_active"].as_bool().ok_or("Missing is_active")?,
-            created_at: row["created_at"].as_str().ok_or("Missing created_at")?.to_string(),
+            capabilities: row["capabilities"]
+                .as_str()
+                .ok_or("Missing capabilities")?
+                .to_string(),
+            is_active: row["is_active"]
+                .as_bool()
+                .or_else(|| row["is_active"].as_i64().map(|i| i != 0))
+                .ok_or("Missing is_active")?,
+            created_at: row["created_at"]
+                .as_str()
+                .ok_or("Missing created_at")?
+                .to_string(),
         })
     }
 }
 
 impl Agent {
     pub fn from_json_row(row: &serde_json::Value) -> Result<Self, String> {
+        // Parse UUID fields (new columns, may be null for legacy records)
+        let uuid = row["uuid"].as_str().and_then(|s| Uuid::parse_str(s).ok());
+        let user_uuid = row["user_uuid"].as_str().and_then(|s| Uuid::parse_str(s).ok());
+        let provider_uuid = row["provider_uuid"].as_str().and_then(|s| Uuid::parse_str(s).ok());
+
+        // Parse is_legacy_id field (defaults to true for backward compatibility)
+        let is_legacy_id = row["is_legacy_id"]
+            .as_bool()
+            .unwrap_or(true); // Default to true for existing records
+
         Ok(Agent {
             id: row["id"].as_i64().ok_or("Missing id")?,
+            uuid,
             user_id: row["user_id"].as_i64().ok_or("Missing user_id")?,
+            user_uuid,
             name: row["name"].as_str().ok_or("Missing name")?.to_string(),
             description: row["description"].as_str().map(|s| s.to_string()),
             provider_id: row["provider_id"].as_i64().ok_or("Missing provider_id")?,
-            model_name: row["model_name"].as_str().ok_or("Missing model_name")?.to_string(),
-            stream: row["stream"].as_bool().ok_or("Missing stream")?,
-            chat: row["chat"].as_bool().ok_or("Missing chat")?,
-            embed: row["embed"].as_bool().ok_or("Missing embed")?,
-            image: row["image"].as_bool().ok_or("Missing image")?,
-            tool: row["tool"].as_bool().ok_or("Missing tool")?,
+            provider_uuid,
+            model_name: row["model_name"]
+                .as_str()
+                .ok_or("Missing model_name")?
+                .to_string(),
+            stream: row["stream"]
+                .as_bool()
+                .or_else(|| row["stream"].as_i64().map(|i| i != 0))
+                .ok_or("Missing stream")?,
+            chat: row["chat"]
+                .as_bool()
+                .or_else(|| row["chat"].as_i64().map(|i| i != 0))
+                .ok_or("Missing chat")?,
+            embed: row["embed"]
+                .as_bool()
+                .or_else(|| row["embed"].as_i64().map(|i| i != 0))
+                .ok_or("Missing embed")?,
+            image: row["image"]
+                .as_bool()
+                .or_else(|| row["image"].as_i64().map(|i| i != 0))
+                .ok_or("Missing image")?,
+            tool: row["tool"]
+                .as_bool()
+                .or_else(|| row["tool"].as_i64().map(|i| i != 0))
+                .ok_or("Missing tool")?,
             tools: row["tools"].as_str().ok_or("Missing tools")?.to_string(),
-            allow_tools: row["allow_tools"].as_str().ok_or("Missing allow_tools")?.to_string(),
+            allow_tools: row["allow_tools"]
+                .as_str()
+                .ok_or("Missing allow_tools")?
+                .to_string(),
             system_prompt: row["system_prompt"].as_str().map(|s| s.to_string()),
             top_p: row["top_p"].as_f64().ok_or("Missing top_p")?,
             max_context: row["max_context"].as_i64().ok_or("Missing max_context")?,
-            file: row["file"].as_bool().ok_or("Missing file")?,
-            file_types: row["file_types"].as_str().ok_or("Missing file_types")?.to_string(),
+            file: row["file"]
+                .as_bool()
+                .or_else(|| row["file"].as_i64().map(|i| i != 0))
+                .ok_or("Missing file")?,
+            file_types: row["file_types"]
+                .as_str()
+                .ok_or("Missing file_types")?
+                .to_string(),
             temperature: row["temperature"].as_f64().ok_or("Missing temperature")?,
             max_tokens: row["max_tokens"].as_i64().ok_or("Missing max_tokens")?,
-            presence_penalty: row["presence_penalty"].as_f64().ok_or("Missing presence_penalty")?,
-            frequency_penalty: row["frequency_penalty"].as_f64().ok_or("Missing frequency_penalty")?,
+            presence_penalty: row["presence_penalty"]
+                .as_f64()
+                .ok_or("Missing presence_penalty")?,
+            frequency_penalty: row["frequency_penalty"]
+                .as_f64()
+                .ok_or("Missing frequency_penalty")?,
             icon: row["icon"].as_str().ok_or("Missing icon")?.to_string(),
-            category: row["category"].as_str().ok_or("Missing category")?.to_string(),
-            public: row["public"].as_bool().ok_or("Missing public")?,
-            is_active: row["is_active"].as_bool().ok_or("Missing is_active")?,
-            created_at: row["created_at"].as_str().ok_or("Missing created_at")?.to_string(),
-            updated_at: row["updated_at"].as_str().ok_or("Missing updated_at")?.to_string(),
+            category: row["category"]
+                .as_str()
+                .ok_or("Missing category")?
+                .to_string(),
+            public: row["public"]
+                .as_bool()
+                .or_else(|| row["public"].as_i64().map(|i| i != 0))
+                .ok_or("Missing public")?,
+            is_legacy_id,
+            is_active: row["is_active"]
+                .as_bool()
+                .or_else(|| row["is_active"].as_i64().map(|i| i != 0))
+                .ok_or("Missing is_active")?,
+            created_at: row["created_at"]
+                .as_str()
+                .ok_or("Missing created_at")?
+                .to_string(),
+            updated_at: row["updated_at"]
+                .as_str()
+                .ok_or("Missing updated_at")?
+                .to_string(),
         })
     }
 }

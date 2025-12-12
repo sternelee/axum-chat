@@ -1,0 +1,221 @@
+<!-- agent-provider-picker.html -->
+{% macro agent_provider_picker(agents, providers, selected_agent, selected_provider) %}
+<div class="card bg-base-100 shadow-xl mb-4">
+    <div class="card-body">
+        <h2 class="card-title flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Choose Assistant
+        </h2>
+
+        <!-- Tab Navigation -->
+        <div class="tabs tabs-boxed bg-base-200 p-1">
+            <a href="#agents-tab" class="tab tab-active" id="agents-tab-btn" onclick="showTab('agents')">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline mr-1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm0 0c.621 0 1.125.504 1.125 1.125v2.25M12 9.75c0 .414-.168.75-.375.75s-.375-.336-.375-.75S11.328 9 11.625 9s.375.336.375.75zm0 0c.621 0 1.125.504 1.125 1.125v2.25M9.75 13.5v2.25M12 13.5v2.25" />
+                </svg>
+                Agents
+                <span class="badge badge-sm badge-primary ml-1">{{ agents | length }}</span>
+            </a>
+            <a href="#providers-tab" class="tab" id="providers-tab-btn" onclick="showTab('providers')">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline mr-1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5H8.25L4.5 13.5zm10.5 0l.75-1.5M19.5 12.75L21 15l-1.5 2.25H16.5L15 12.75l1.5-2.25z" />
+                </svg>
+                Providers
+                <span class="badge badge-sm badge-secondary ml-1">{{ providers | length }}</span>
+            </a>
+        </div>
+
+        <!-- Agents Tab -->
+        <div id="agents-tab" class="mt-4">
+            {% if agents %}
+            <div class="form-control">
+                {% for agent in agents %}
+                <label class="label cursor-pointer border rounded-lg mb-3 p-4 hover:bg-base-200 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 {% if selected_agent and selected_agent.id == agent.id %}border-primary bg-primary/5{% endif %}">
+                    <div class="flex items-start gap-4 w-full">
+                        <div class="text-4xl">{{ agent.icon }}</div>
+                        <div class="flex-grow min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-lg">{{ agent.name }}</span>
+                                <span class="badge badge-outline badge-sm">{{ agent.category }}</span>
+                                {% if agent.public %}
+                                <span class="badge badge-info badge-sm">Public</span>
+                                {% endif %}
+                            </div>
+                            {% if agent.description %}
+                            <p class="text-sm opacity-70 mb-2 line-clamp-2">{{ agent.description }}</p>
+                            {% endif %}
+                            <div class="flex flex-wrap gap-1 mb-2">
+                                <div class="badge badge-ghost badge-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 inline mr-1">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                                    </svg>
+                                    {{ agent.provider.name }}
+                                </div>
+                                <div class="badge badge-ghost badge-sm">
+                                    {{ agent.model_name }}
+                                </div>
+                                {% if agent.stream %}
+                                <span class="badge badge-success badge-sm">Streaming</span>
+                                {% endif %}
+                                {% if agent.tool %}
+                                <span class="badge badge-warning badge-sm">Tools</span>
+                                {% endif %}
+                            </div>
+                            {% if agent.system_prompt %}
+                            <div class="text-xs opacity-60 mt-1">
+                                <strong>System:</strong> {{ agent.system_prompt | truncate(length=80) }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <input type="radio" name="chat_entity" value="agent:{{ agent.id }}" class="radio radio-primary"
+                               {% if selected_agent and selected_agent.id == agent.id %}checked{% endif %} />
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8 opacity-60">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 mx-auto mb-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345 8.334a2.126 2.126 0 01.802-.243m0 0a2.127 2.127 0 012.07 1.364m-4.865 0h.005m4.865 0a2.126 2.126 0 011.376 2.244m-3.876 0A4.48 4.48 0 0012 19.5v-6.75m0 0a4.48 4.48 0 00-4.48 4.48" />
+                </svg>
+                <p>No agents configured yet.</p>
+                <p class="text-sm mt-2">
+                    <a href="/agents" class="link link-primary">Create your first agent</a> to get started.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Providers Tab -->
+        <div id="providers-tab" class="mt-4 hidden">
+            {% if providers %}
+            <div class="form-control">
+                {% for provider in providers %}
+                {% if provider.is_active %}
+                <label class="label cursor-pointer border rounded-lg mb-3 p-4 hover:bg-base-200 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 {% if selected_provider and selected_provider.id == provider.id %}border-primary bg-primary/5{% endif %}">
+                    <div class="flex items-start gap-4 w-full">
+                        <div class="text-4xl">
+                            {% if provider.provider_type == "openai" %}
+                            🔮
+                            {% elif provider.provider_type == "anthropic" %}
+                            🧠
+                            {% elif provider.provider_type == "openrouter" %}
+                            🌐
+                            {% elif provider.provider_type == "deepseek" %}
+                            🔍
+                            {% elif provider.provider_type == "gemini" %}
+                            💎
+                            {% elif provider.provider_type == "groq" %}
+                            ⚡
+                            {% elif provider.provider_type == "cohere" %}
+                            🌊
+                            {% elif provider.provider_type == "mistral" %}
+                            🌪️
+                            {% elif provider.provider_type == "azure" %}
+                            ☁️
+                            {% elif provider.provider_type == "huggingface" %}
+                            🤗
+                            {% elif provider.provider_type == "xai" %}
+                            ⭐
+                            {% elif provider.is_local_agent %}
+                            🏠
+                            {% else %}
+                            🤖
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-lg">{{ provider.name }}</span>
+                                <span class="badge badge-outline">{{ provider.provider_type | title }}</span>
+                            </div>
+                            <p class="text-sm opacity-70 mb-2 font-mono">{{ provider.base_url }}</p>
+                            <div class="flex flex-wrap gap-1 mb-2">
+                                {% if provider.support_chat %}
+                                <span class="badge badge-success badge-sm">Chat</span>
+                                {% endif %}
+                                {% if provider.support_streaming %}
+                                <span class="badge badge-info badge-sm">Streaming</span>
+                                {% endif %}
+                                {% if provider.support_tools %}
+                                <span class="badge badge-warning badge-sm">Tools</span>
+                                {% endif %}
+                                {% if provider.support_images %}
+                                <span class="badge badge-accent badge-sm">Images</span>
+                                {% endif %}
+                                {% if provider.is_local_agent %}
+                                <span class="badge badge-primary badge-sm">Local Agent</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <input type="radio" name="chat_entity" value="provider:{{ provider.id }}" class="radio radio-primary"
+                               {% if selected_provider and selected_provider.id == provider.id %}checked{% endif %} />
+                    </div>
+                </label>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8 opacity-60">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 mx-auto mb-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <p>No providers configured.</p>
+                <p class="text-sm mt-2">
+                    <a href="/providers" class="link link-primary">Add a provider</a> to get started.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Action Button -->
+        <div class="card-actions justify-end mt-6">
+            <button type="submit" class="btn btn-primary" onclick="confirmSelection()">
+                Start Chat
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 ml-1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showTab(tabName) {
+    // Hide all tabs
+    document.getElementById('agents-tab').classList.add('hidden');
+    document.getElementById('providers-tab').classList.add('hidden');
+
+    // Remove active state from all tab buttons
+    document.getElementById('agents-tab-btn').classList.remove('tab-active');
+    document.getElementById('providers-tab-btn').classList.remove('tab-active');
+
+    // Show selected tab
+    document.getElementById(tabName + '-tab').classList.remove('hidden');
+    document.getElementById(tabName + '-tab-btn').classList.add('tab-active');
+}
+
+function confirmSelection() {
+    const selectedEntity = document.querySelector('input[name="chat_entity"]:checked');
+    if (!selectedEntity) {
+        alert('Please select an agent or provider to start chatting.');
+        return;
+    }
+
+    const [type, id] = selectedEntity.value.split(':');
+
+    // Redirect to appropriate chat creation page
+    if (type === 'agent') {
+        window.location.href = `/chat/agent/${id}`;
+    } else {
+        window.location.href = `/chat/provider/${id}`;
+    }
+}
+
+// Initialize first tab as active
+document.addEventListener('DOMContentLoaded', function() {
+    showTab('agents');
+});
+</script>
+{% endmacro %}

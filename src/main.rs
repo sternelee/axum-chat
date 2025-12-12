@@ -13,10 +13,10 @@ mod middleware;
 use middleware::extract_user;
 mod data;
 mod utils;
-use data::{Database, ChatRepository, DatabaseError};
-mod mcp;
-mod local_agents;
+use data::{ChatRepository, Database, DatabaseError};
 mod acp;
+mod local_agents;
+mod mcp;
 
 use crate::middleware::handle_error;
 
