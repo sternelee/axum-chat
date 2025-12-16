@@ -1,15 +1,207 @@
-<div class="min-h-[100vh] pt-[200px]">
-    <form action="/settings" method="post">
-        <div class="shadow-lg max-w-xl m-auto">
-            <label for="hs-trailing-button-add-on" class="sr-only">Label</label>
-            <div class="flex rounded-md shadow-sm">
-                <input name="api_key" type="password" value="{{ openai_api_key }}"
-                    class="p-2 block w-full border-gray-200 shadow-sm rounded-l-md text-sm focus:z-10 focus:border-indigo-500 focus:ring-indigo-500">
-                <button type="submit"
-                    class="py-3 px-4 inline-flex flex-shrink-0 justify-center items-center gap-2 rounded-r-md border border-transparent font-semibold bg-indigo-500 text-white hover:bg-indigo-600 focus:z-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm">
-                    Update API key
-                </button>
+<div class="hero bg-base-200">
+    <div class="hero-content">
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-bold mb-2">
+                ⚙️ AI Configuration
+            </h1>
+            <p class="text-lg text-base-content/70">Customize your AI assistant settings</p>
+        </div>
+    </div>
+</div>
+
+<div class="container mx-auto px-4 py-8 max-w-4xl -mt-20 flex-1 overflow-auto">
+    <form action="/settings" method="post" class="space-y-6">
+        <!-- API Configuration Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <div class="card-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 012 8.242M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7S4.52 16.057 3.248 12z" />
+                    </svg>
+                    API Configuration
+                </div>
+
+                <!-- API Key -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">API Key</span>
+                        <span class="label-text-alt">Required</span>
+                    </label>
+                    <input
+                        name="api_key"
+                        type="password"
+                        value="{{ openai_api_key }}"
+                        placeholder="Enter your OpenAI-compatible API key"
+                        class="input input-bordered w-full"
+                        required
+                    />
+                    <label class="label">
+                        <span class="label-text-alt">Your API key is stored securely</span>
+                    </label>
+                </div>
+
+                <!-- Base URL -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">Base URL</span>
+                    </label>
+                    <input
+                        name="base_url"
+                        type="url"
+                        value="{{ base_url }}"
+                        placeholder="https://api.siliconflow.cn/v1"
+                        class="input input-bordered w-full"
+                    />
+                    <label class="label">
+                        <span class="label-text-alt">API endpoint URL (defaults to SiliconFlow)</span>
+                    </label>
+                </div>
+
+                <!-- Model -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">Model</span>
+                    </label>
+                    <input
+                        name="model"
+                        type="text"
+                        value="{{ model }}"
+                        placeholder="Qwen/Qwen2.5-7B-Instruct"
+                        class="input input-bordered w-full"
+                    />
+                    <label class="label">
+                        <span class="label-text-alt">AI model to use for conversations</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generation Parameters Card -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <div class="card-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c-.94 1.543-.826 3.31 2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 00-1.066-2.573c-.94-1.543-.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Generation Parameters
+                </div>
+
+                <!-- System Prompt -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">System Prompt</span>
+                    </label>
+                    <textarea
+                        name="system_prompt"
+                        class="textarea textarea-bordered h-24"
+                        placeholder="You are a helpful assistant."
+                    >{{ system_prompt }}</textarea>
+                    <label class="label">
+                        <span class="label-text-alt">Instructions that guide the AI's behavior and responses</span>
+                    </label>
+                </div>
+
+                <!-- Temperature -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">
+                            Temperature: <span class="badge badge-primary">{{ temperature }}</span>
+                        </span>
+                    </label>
+                    <input
+                        name="temperature"
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value="{{ temperature }}"
+                        class="range range-primary"
+                        oninput="this.previousElementSibling.querySelector('.badge').textContent = this.value"
+                    />
+                    <div class="flex justify-between text-xs opacity-70 mt-1">
+                        <span>0 (Conservative)</span>
+                        <span>1 (Balanced)</span>
+                        <span>2 (Creative)</span>
+                    </div>
+                    <label class="label">
+                        <span class="label-text-alt">Controls randomness in responses</span>
+                    </label>
+                </div>
+
+                <!-- Top P -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">
+                            Top P: <span class="badge badge-secondary">{{ top_p }}</span>
+                        </span>
+                    </label>
+                    <input
+                        name="top_p"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value="{{ top_p }}"
+                        class="range range-secondary"
+                        oninput="this.previousElementSibling.querySelector('.badge').textContent = this.value"
+                    />
+                    <div class="flex justify-between text-xs opacity-70 mt-1">
+                        <span>0</span>
+                        <span>0.5</span>
+                        <span>1</span>
+                    </div>
+                    <label class="label">
+                        <span class="label-text-alt">Controls diversity via nucleus sampling</span>
+                    </label>
+                </div>
+
+                <!-- Max Tokens -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">
+                            Max Tokens: <span class="badge badge-accent">{{ max_tokens }}</span>
+                        </span>
+                    </label>
+                    <input
+                        name="max_tokens"
+                        type="range"
+                        min="100"
+                        max="4000"
+                        step="100"
+                        value="{{ max_tokens }}"
+                        class="range range-accent"
+                        oninput="this.previousElementSibling.querySelector('.badge').textContent = this.value"
+                    />
+                    <div class="flex justify-between text-xs opacity-70 mt-1">
+                        <span>100</span>
+                        <span>2000</span>
+                        <span>4000</span>
+                    </div>
+                    <label class="label">
+                        <span class="label-text-alt">Maximum number of tokens in the response</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+  
+        <!-- Action Buttons -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <div class="card-actions justify-end gap-4">
+                    <button type="button" onclick="location.reload()" class="btn btn-ghost">
+                        Reset
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 mr-2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Save Settings
+                    </button>
+                </div>
             </div>
         </div>
     </form>
 </div>
+

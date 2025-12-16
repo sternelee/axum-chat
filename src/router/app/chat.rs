@@ -143,24 +143,6 @@ impl IntoResponse for ChatError {
     }
 }
 
-const MODELS: [(&str, &str, &str); 4] = [
-    (
-        "DeepSeek-V3.2-Exp",
-        "deepseek-ai/DeepSeek-V3.2-Exp",
-        "This is the preview version of the GPT-4 model.",
-    ),
-    ("GPT-4", "gpt-4", "Latest generation GPT-4 model."),
-    (
-        "GPT-3.5-16K",
-        "gpt-3.5-turbo-16k",
-        "An enhanced GPT-3.5 model with 16K token limit.",
-    ),
-    (
-        "GPT-3.5",
-        "gpt-3.5-turbo",
-        "Standard GPT-3.5 model with turbo features.",
-    ),
-];
 
 #[axum::debug_handler]
 pub async fn chat(
@@ -173,14 +155,7 @@ pub async fn chat(
         .await
         .unwrap();
 
-    let selected_model = MODELS
-        .iter()
-        .filter(|f| f.1 == "deepseek-ai/DeepSeek-V3.2-Exp")
-        .collect::<Vec<_>>()[0];
-
     let mut context = Context::new();
-    context.insert("models", &MODELS);
-    context.insert("selected_model", &selected_model);
     context.insert("user_chats", &user_chats);
     let home = state.tera.render("views/chat.html", &context).unwrap();
 
@@ -195,7 +170,6 @@ pub async fn chat(
 #[derive(Deserialize, Debug)]
 pub struct NewChat {
     message: String,
-    model: String,
 }
 
 #[axum::debug_handler]
@@ -206,9 +180,12 @@ pub async fn new_chat(
 ) -> Result<Response<String>, ChatError> {
     let current_user = current_user.unwrap();
 
+    // Use model from user settings, fallback to default if not set
+    let model = current_user.model.as_deref().unwrap_or("Qwen/Qwen2.5-7B-Instruct");
+
     let chat_id = state
         .chat_repo
-        .create_chat(current_user.id, &new_chat.message, &new_chat.model)
+        .create_chat(current_user.id, &new_chat.message, model)
         .await
         .map_err(|_| ChatError::Other)?;
 
@@ -250,11 +227,6 @@ pub async fn chat_by_id(
         .await
         .unwrap();
 
-    let selected_model = MODELS
-        .iter()
-        .filter(|f| f.1 == chat_message_pairs[0].model)
-        .collect::<Vec<_>>()[0];
-
     let parsed_pairs = chat_message_pairs
         .iter()
         .map(|pair| {
@@ -274,7 +246,6 @@ pub async fn chat_by_id(
     context.insert("chat_message_pairs", &parsed_pairs);
     context.insert("chat_id", &chat_id);
     context.insert("user_chats", &user_chats);
-    context.insert("selected_model", &selected_model);
 
     let home = state.tera.render("views/chat.html", &context).unwrap();
 
@@ -322,10 +293,11 @@ pub async fn chat_generate(
     State(state): State<Arc<AppState>>,
 ) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, axum::Error>>>, ChatError> {
     let chat_message_pairs = state.chat_repo.retrieve_chat(chat_id).await.unwrap();
-    let key = current_user
-        .unwrap()
-        .openai_api_key
-        .unwrap_or(String::new());
+    let user = current_user.unwrap();
+    let key = user.openai_api_key.unwrap_or(String::new());
+
+    // Use model from user settings, fallback to default if not set
+    let model = user.model.clone().unwrap_or_else(|| "Qwen/Qwen2.5-7B-Instruct".to_string());
 
     match list_engines(&key).await {
         Ok(_res) => {}
@@ -344,7 +316,7 @@ pub async fn chat_generate(
         // Call your existing function to start generating events
         if let Err(e) = generate_sse_stream(
             &key,
-            &chat_message_pairs[0].model.clone(),
+            &model,
             chat_message_pairs,
             sender,
         )

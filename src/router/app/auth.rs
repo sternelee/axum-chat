@@ -61,7 +61,23 @@ pub async fn login_form(
     // Verify password
     let user = sqlx::query_as!(
         User,
-        "SELECT users.*, settings.openai_api_key FROM users LEFT JOIN settings ON settings.user_id=users.id WHERE users.email = $1",
+        r#"
+        SELECT
+            users.id,
+            users.email,
+            users.password,
+            users.created_at,
+            settings.openai_api_key,
+            settings.base_url,
+            settings.model,
+            settings.system_prompt,
+            settings.temperature,
+            settings.top_p,
+            settings.max_tokens
+        FROM users
+        LEFT JOIN settings ON settings.user_id=users.id
+        WHERE users.email = $1
+        "#,
         log_in.email,
     ).fetch_one(&*state.pool).await
     .map_err(|_| LogInError::InvalidCredentials)?;

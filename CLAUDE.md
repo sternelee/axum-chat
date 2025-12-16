@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Setup and Initialization
 ```bash
-just init                    # Install tools, create database, run migrations
+just init                    # Install cargo-watch, sqlx-cli, create database, run migrations
 just db-migrate              # Run database migrations
 just db-reset                # Drop, recreate database and run migrations + seed data
 ```
@@ -14,7 +14,7 @@ just db-reset                # Drop, recreate database and run migrations + seed
 ### Development
 ```bash
 just dev                     # Start development server with Tailwind watch (recommended)
-just dev-server              # Start cargo watch for Rust code only
+just dev-server              # Start cargo watch for Rust code only (watches src/, templates/, tailwind.config.js, input.css)
 just dev-tailwind            # Start Tailwind CSS watch only
 cargo run                    # Start server without watch mode
 ```
@@ -97,16 +97,28 @@ SILICONFLOW_API_KEY=your-key-here
 
 **Note**: `SILICONFLOW_API_KEY` is the server's default API key, but users can provide their own OpenAI-compatible API keys in settings.
 
+### Key Dependencies
+
+- `axum 0.8` - Web framework with routing and middleware support
+- `sqlx 0.8` - Type-safe SQL queries and migrations with SQLite
+- `tokio 1.48` - Async runtime with full feature set
+- `tower-cookies 0.11` - Cookie management for session handling
+- `reqwest-eventsource 0.6` - Server-sent events for AI API streaming
+- `tera 1.20` - Jinja2-inspired templating engine
+- `serde 1.0` - Serialization/deserialization with derive support
+- `chrono 0.4` - Date/time handling with serde integration
+
 ### Important Implementation Notes
 
 - **Axum 0.8**: Uses new routing syntax (`{param}` instead of `:param`)
 - **Authentication**: Session-based using HTTP cookies via `tower_cookies`
 - **Security**: Passwords are currently stored as plain text (TODO: implement hashing)
 - **Frontend Dependencies**:
-  - Tailwind CSS standalone CLI must be installed separately
+  - Tailwind CSS standalone CLI must be installed separately (not managed by Cargo)
   - HTMX 2.0.8 for dynamic interactions
   - DaisyUI + Tailwind Browser for styling
 - **Database**: SQLite with WAL mode for better concurrent access
 - **Streaming**: Native JavaScript EventSource API (HTMX SSE extension removed due to `api.selectAndSwap` compatibility issues)
 - **Server**: Runs on port 3000 by default
 - **Release Build**: Optimized with LTO and symbol stripping for production
+- **Prerequisites**: Requires `just` command runner and manual Tailwind CSS CLI installation

@@ -1,4 +1,0 @@
-{
-  "title": "Test blog article",
-  "description": "This is a test parseing Markdown blog articles server-side using Comrak in Rust."
-}

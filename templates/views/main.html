@@ -10,7 +10,7 @@
 
 <body class="h-full overflow-hidden flex flex-col">
     {% include "components/header.html" %}
-    <main class="flex-1 overflow-hidden pt-[60px]">
+    <main class="flex-1 overflow-hidden flex flex-col">
         {{ view | safe }}
     </main>
 
@@ -18,3 +18,11 @@
     {% include "components/footer.html" %}
     {% endif %}
 </body>
+
+<script>
+    // Load saved theme on all pages
+    (function() {
+        const savedTheme = localStorage.getItem('theme') || 'sunset';
+        document.documentElement.setAttribute('data-theme', savedTheme');
+    })();
+</script>

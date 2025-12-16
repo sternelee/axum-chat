@@ -1,5 +1,4 @@
 {% import "components/message.html" as macros %}
-{% import "components/model-picker.html" as model_macros %}
 
 <div class="drawer lg:drawer-open h-full">
     <input id="my-drawer-2" type="checkbox" class="drawer-toggle" />
@@ -19,14 +18,10 @@
         </div>
 
         <div id="chat-messages" class="flex-grow overflow-y-auto p-4 pb-32 min-h-0 scroll-smooth">
-            {% if models %}
-            <div class="max-w-3xl mx-auto">
-                {{ model_macros::model_picker(models=models, selected_model=selected_model) }}
-            </div>
-            {% elif selected_model %}
+            {% if current_user.model %}
             <div class="flex justify-center gap-2 mb-4 sticky top-0 z-10">
-                <div class="badge badge-primary badge-lg">{{ selected_model.0 }}</div>
-                <div class="badge badge-outline badge-lg">{{ selected_model.1 }}</div>
+                <div class="badge badge-primary badge-lg">Current Model</div>
+                <div class="badge badge-outline badge-lg">{{ current_user.model }}</div>
             </div>
             {% endif %}
 
@@ -68,7 +63,7 @@
             });
         </script>
 
-        <div class="absolute bottom-0 left-0 right-0 bg-base-100/80 backdrop-blur-sm p-4 border-t border-base-200">
+        <div class="absolute bottom-14 left-0 right-0 bg-base-100/80 backdrop-blur-sm p-4 border-t border-base-200">
             <div class="max-w-4xl mx-auto">
                 {% if chat_id is undefined %}
                 <form>
@@ -76,7 +71,7 @@
                         <textarea name="message" class="textarea textarea-bordered join-item w-full resize-none"
                             placeholder="Type your message here..."></textarea>
                         <button type="submit" class="btn btn-primary join-item" hx-post="/chat"
-                            hx-include="[name='message'], [name='model']">Create</button>
+                            hx-include="[name='message']">Create</button>
                     </div>
                 </form>
                 {% else %}

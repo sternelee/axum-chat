@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            users.id,\n            users.email,\n            users.password,\n            users.created_at,\n            settings.openai_api_key,\n            settings.base_url,\n            settings.model,\n            settings.system_prompt,\n            settings.temperature,\n            settings.top_p,\n            settings.max_tokens\n        FROM users\n        LEFT JOIN settings ON settings.user_id=users.id\n        WHERE users.id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "email",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "password",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 3,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "openai_api_key",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "base_url",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "model",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "system_prompt",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "temperature",
+        "ordinal": 8,
+        "type_info": "Float"
+      },
+      {
+        "name": "top_p",
+        "ordinal": 9,
+        "type_info": "Float"
+      },
+      {
+        "name": "max_tokens",
+        "ordinal": 10,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "5aef1f26606c200c2ad76e975c041e40e13afd1b214fbc7fdfe24ad71ad3133d"
+}

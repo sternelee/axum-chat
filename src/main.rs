@@ -117,6 +117,12 @@ pub struct User {
     password: String,
     created_at: NaiveDateTime,
     openai_api_key: Option<String>,
+    base_url: Option<String>,
+    model: Option<String>,
+    system_prompt: Option<String>,
+    temperature: Option<f64>,
+    top_p: Option<f64>,
+    max_tokens: Option<i64>,
 }
 
 /// Utility function for mapping any error into a `500 Internal Server Error`

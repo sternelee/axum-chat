@@ -36,7 +36,23 @@ pub async fn extract_user(
     // Get the user
     match sqlx::query_as!(
         User,
-        "SELECT users.*, settings.openai_api_key FROM users LEFT JOIN settings ON settings.user_id=users.id WHERE users.id = $1",
+        r#"
+        SELECT
+            users.id,
+            users.email,
+            users.password,
+            users.created_at,
+            settings.openai_api_key,
+            settings.base_url,
+            settings.model,
+            settings.system_prompt,
+            settings.temperature,
+            settings.top_p,
+            settings.max_tokens
+        FROM users
+        LEFT JOIN settings ON settings.user_id=users.id
+        WHERE users.id = $1
+        "#,
         id
     )
     .fetch_one(&*state.pool)
@@ -69,36 +85,6 @@ pub async fn auth(
     match current_user {
         Some(_user) => next.run(req).await,
         _ => error_response(401, "You need to log in to view this page"),
-    }
-}
-
-pub async fn valid_openai_api_key(
-    Extension(current_user): Extension<Option<User>>,
-    req: Request<Body>,
-    next: Next,
-) -> Response {
-    let key = current_user
-        .unwrap()
-        .openai_api_key
-        .unwrap_or(String::new());
-
-    let client = reqwest::Client::new();
-    match client
-        // .get("https://api.openai.com/v1/engines")
-        .get("https://api.siliconflow.cn/v1/user/info")
-        .bearer_auth(&key)
-        .send()
-        .await
-    {
-        Ok(res) => {
-            if res.status().is_success() {
-                next.run(req).await
-            } else {
-                println!("failure!");
-                error_response(403, "You API key is not set or invalid. Go to Settings.")
-            }
-        }
-        Err(_) => error_response(403, "You API key is not set or invalid. Go to Settings"),
     }
 }
 
