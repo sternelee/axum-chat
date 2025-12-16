@@ -1,6 +1,21 @@
 <!-- agent-provider-picker.html -->
 {% macro agent_provider_picker(agents, providers, selected_agent, selected_provider) %}
-<div class="card bg-base-100 shadow-xl mb-4">
+<div x-data="{ 
+    activeTab: 'agents',
+    selectedEntity: '{% if selected_agent %}agent:{{ selected_agent.id }}{% elif selected_provider %}provider:{{ selected_provider.id }}{% endif %}',
+    confirmSelection() {
+        if (!this.selectedEntity) {
+            alert('Please select an agent or provider to start chatting.');
+            return;
+        }
+        const [type, id] = this.selectedEntity.split(':');
+        if (type === 'agent') {
+            window.location.href = `/chat/agent/${id}`;
+        } else {
+            window.location.href = `/chat/provider/${id}`;
+        }
+    }
+}" class="card bg-base-100 shadow-xl mb-4">
     <div class="card-body">
         <h2 class="card-title flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
@@ -11,14 +26,14 @@
 
         <!-- Tab Navigation -->
         <div class="tabs tabs-boxed bg-base-200 p-1">
-            <a href="#agents-tab" class="tab tab-active" id="agents-tab-btn" onclick="showTab('agents')">
+            <a href="#" @click.prevent="activeTab = 'agents'" :class="{ 'tab-active': activeTab === 'agents' }" class="tab">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline mr-1">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm0 0c.621 0 1.125.504 1.125 1.125v2.25M12 9.75c0 .414-.168.75-.375.75s-.375-.336-.375-.75S11.328 9 11.625 9s.375.336.375.75zm0 0c.621 0 1.125.504 1.125 1.125v2.25M9.75 13.5v2.25M12 13.5v2.25" />
                 </svg>
                 Agents
                 <span class="badge badge-sm badge-primary ml-1">{{ agents | length }}</span>
             </a>
-            <a href="#providers-tab" class="tab" id="providers-tab-btn" onclick="showTab('providers')">
+            <a href="#" @click.prevent="activeTab = 'providers'" :class="{ 'tab-active': activeTab === 'providers' }" class="tab">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline mr-1">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5H8.25L4.5 13.5zm10.5 0l.75-1.5M19.5 12.75L21 15l-1.5 2.25H16.5L15 12.75l1.5-2.25z" />
                 </svg>
@@ -28,11 +43,11 @@
         </div>
 
         <!-- Agents Tab -->
-        <div id="agents-tab" class="mt-4">
+        <div x-show="activeTab === 'agents'" class="mt-4">
             {% if agents %}
             <div class="form-control">
                 {% for agent in agents %}
-                <label class="label cursor-pointer border rounded-lg mb-3 p-4 hover:bg-base-200 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 {% if selected_agent and selected_agent.id == agent.id %}border-primary bg-primary/5{% endif %}">
+                <label class="label cursor-pointer border rounded-lg mb-3 p-4 hover:bg-base-200 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5" :class="{ 'border-primary bg-primary/5': selectedEntity === 'agent:{{ agent.id }}' }">
                     <div class="flex items-start gap-4 w-full">
                         <div class="text-4xl">{{ agent.icon }}</div>
                         <div class="flex-grow min-w-0">
@@ -69,8 +84,7 @@
                             </div>
                             {% endif %}
                         </div>
-                        <input type="radio" name="chat_entity" value="agent:{{ agent.id }}" class="radio radio-primary"
-                               {% if selected_agent and selected_agent.id == agent.id %}checked{% endif %} />
+                        <input type="radio" name="chat_entity" value="agent:{{ agent.id }}" class="radio radio-primary" x-model="selectedEntity" />
                     </div>
                 </label>
                 {% endfor %}
@@ -89,12 +103,12 @@
         </div>
 
         <!-- Providers Tab -->
-        <div id="providers-tab" class="mt-4 hidden">
+        <div x-show="activeTab === 'providers'" class="mt-4" style="display: none;">
             {% if providers %}
             <div class="form-control">
                 {% for provider in providers %}
                 {% if provider.is_active %}
-                <label class="label cursor-pointer border rounded-lg mb-3 p-4 hover:bg-base-200 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5 {% if selected_provider and selected_provider.id == provider.id %}border-primary bg-primary/5{% endif %}">
+                <label class="label cursor-pointer border rounded-lg mb-3 p-4 hover:bg-base-200 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5" :class="{ 'border-primary bg-primary/5': selectedEntity === 'provider:{{ provider.id }}' }">
                     <div class="flex items-start gap-4 w-full">
                         <div class="text-4xl">
                             {% if provider.provider_type == "openai" %}
@@ -149,8 +163,7 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <input type="radio" name="chat_entity" value="provider:{{ provider.id }}" class="radio radio-primary"
-                               {% if selected_provider and selected_provider.id == provider.id %}checked{% endif %} />
+                        <input type="radio" name="chat_entity" value="provider:{{ provider.id }}" class="radio radio-primary" x-model="selectedEntity" />
                     </div>
                 </label>
                 {% endif %}
@@ -171,7 +184,7 @@
 
         <!-- Action Button -->
         <div class="card-actions justify-end mt-6">
-            <button type="submit" class="btn btn-primary" onclick="confirmSelection()">
+            <button type="button" class="btn btn-primary" @click="confirmSelection()">
                 Start Chat
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 ml-1">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -180,42 +193,4 @@
         </div>
     </div>
 </div>
-
-<script>
-function showTab(tabName) {
-    // Hide all tabs
-    document.getElementById('agents-tab').classList.add('hidden');
-    document.getElementById('providers-tab').classList.add('hidden');
-
-    // Remove active state from all tab buttons
-    document.getElementById('agents-tab-btn').classList.remove('tab-active');
-    document.getElementById('providers-tab-btn').classList.remove('tab-active');
-
-    // Show selected tab
-    document.getElementById(tabName + '-tab').classList.remove('hidden');
-    document.getElementById(tabName + '-tab-btn').classList.add('tab-active');
-}
-
-function confirmSelection() {
-    const selectedEntity = document.querySelector('input[name="chat_entity"]:checked');
-    if (!selectedEntity) {
-        alert('Please select an agent or provider to start chatting.');
-        return;
-    }
-
-    const [type, id] = selectedEntity.value.split(':');
-
-    // Redirect to appropriate chat creation page
-    if (type === 'agent') {
-        window.location.href = `/chat/agent/${id}`;
-    } else {
-        window.location.href = `/chat/provider/${id}`;
-    }
-}
-
-// Initialize first tab as active
-document.addEventListener('DOMContentLoaded', function() {
-    showTab('agents');
-});
-</script>
 {% endmacro %}

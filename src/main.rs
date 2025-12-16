@@ -56,6 +56,7 @@ async fn main() {
 
     let static_files = ServeDir::new("assets");
 
+// Re-trigger build
     let tera = match Tera::new("templates/**/*") {
         Ok(t) => t,
         Err(e) => {

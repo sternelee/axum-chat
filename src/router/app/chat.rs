@@ -741,22 +741,50 @@ pub async fn create_chat_with_agent_form(
     State(state): State<Arc<AppState>>,
     Extension(current_user): Extension<Option<User>>,
 ) -> Html<String> {
-    let current_user = current_user.unwrap();
+    println!("DEBUG: create_chat_with_agent_form called for agent_id: {}", agent_id);
+    let current_user = match current_user {
+        Some(user) => user,
+        None => {
+            return Html("<script>window.location.href='/login';</script>".to_string());
+        }
+    };
 
-    // Get the agent
-    let agent = state.chat_repo.get_agent_with_provider(agent_id).await.unwrap().unwrap();
+    // Get the agent with proper error handling
+    let agent = match state.chat_repo.get_agent_with_provider(agent_id).await {
+        Ok(Some(agent)) => agent,
+        Ok(None) => {
+            return Html(
+                "<!DOCTYPE html><html><body><h2>Agent not found</h2><p><a href='/chat'>Back to chat</a></p></body></html>".to_string()
+            );
+        }
+        Err(e) => {
+            eprintln!("Error loading agent {}: {:?}", agent_id, e);
+            return Html(
+                format!("<!DOCTYPE html><html><body><h2>Error loading agent</h2><p>{}</p><a href='/chat'>Back to chat</a></body></html>", e)
+            );
+        }
+    };
 
     let mut context = Context::new();
     context.insert("selected_agent", &agent);
     context.insert("current_user", &current_user);
 
-    let rendered = state.tera.render("views/create_chat.html", &context).unwrap();
+    println!("DEBUG: Rendering views/create_chat.html");
+    let rendered = state.tera.render("views/create_chat.html", &context).unwrap_or_else(|e| {
+        eprintln!("Error rendering template: {:?}", e);
+        format!("<!DOCTYPE html><html><body><h2>Template Error</h2><p>{}</p><a href='/chat'>Back to chat</a></body></html>", e)
+    });
+    println!("DEBUG: Rendered views/create_chat.html, length: {}", rendered.len());
 
     // Wrap in main template like other routes
     let mut main_context = Context::new();
     main_context.insert("view", &rendered);
     main_context.insert("current_user", &current_user);
-    let final_rendered = state.tera.render("views/main.html", &main_context).unwrap();
+    let final_rendered = state.tera.render("views/main.html", &main_context).unwrap_or_else(|e| {
+        eprintln!("Error rendering main template: {:?}", e);
+        format!("<!DOCTYPE html><html><body><h2>Template Error</h2><p>{}</p><a href='/chat'>Back to chat</a></body></html>", e)
+    });
+    println!("DEBUG: Rendered views/main.html, length: {}", final_rendered.len());
 
     Html(final_rendered)
 }
@@ -768,22 +796,61 @@ pub async fn create_chat_with_provider_form(
     State(state): State<Arc<AppState>>,
     Extension(current_user): Extension<Option<User>>,
 ) -> Html<String> {
-    let current_user = current_user.unwrap();
+    println!("DEBUG: create_chat_with_provider_form called with provider_id: {}", provider_id);
+    let current_user = match current_user {
+        Some(user) => {
+            println!("DEBUG: User found: {}", user.id);
+            user
+        },
+        None => {
+            println!("DEBUG: No user found, redirecting to login");
+            return Html("<script>window.location.href='/login';</script>".to_string());
+        }
+    };
 
-    // Get the provider
-    let provider = state.chat_repo.get_provider_by_id(provider_id).await.unwrap().unwrap();
+    // Get the provider with proper error handling
+    println!("DEBUG: Fetching provider with id: {}", provider_id);
+    let provider = match state.chat_repo.get_provider_by_id(provider_id).await {
+        Ok(Some(provider)) => {
+            println!("DEBUG: Provider found: {}", provider.name);
+            provider
+        },
+        Ok(None) => {
+            println!("DEBUG: Provider not found");
+            return Html(
+                "<!DOCTYPE html><html><body><h2>Provider not found</h2><p><a href='/chat'>Back to chat</a></p></body></html>".to_string()
+            );
+        }
+        Err(e) => {
+            eprintln!("Error loading provider {}: {:?}", provider_id, e);
+            return Html(
+                format!("<!DOCTYPE html><html><body><h2>Error loading provider</h2><p>{}</p><a href='/chat'>Back to chat</a></body></html>", e)
+            );
+        }
+    };
 
     let mut context = Context::new();
     context.insert("selected_provider", &provider);
     context.insert("current_user", &current_user);
 
-    let rendered = state.tera.render("views/create_chat.html", &context).unwrap();
+    println!("DEBUG: Rendering template views/create_chat.html");
+    let rendered = state.tera.render("views/create_chat.html", &context).unwrap_or_else(|e| {
+        eprintln!("Error rendering template: {:?}", e);
+        format!("<!DOCTYPE html><html><body><h2>Template Error</h2><p>{}</p><a href='/chat'>Back to chat</a></body></html>", e)
+    });
+    println!("DEBUG: Template rendered, length: {}", rendered.len());
 
     // Wrap in main template like other routes
     let mut main_context = Context::new();
     main_context.insert("view", &rendered);
     main_context.insert("current_user", &current_user);
-    let final_rendered = state.tera.render("views/main.html", &main_context).unwrap();
+
+    println!("DEBUG: Rendering main template views/main.html");
+    let final_rendered = state.tera.render("views/main.html", &main_context).unwrap_or_else(|e| {
+        eprintln!("Error rendering main template: {:?}", e);
+        format!("<!DOCTYPE html><html><body><h2>Template Error</h2><p>{}</p><a href='/chat'>Back to chat</a></body></html>", e)
+    });
+    println!("DEBUG: Final HTML length: {}", final_rendered.len());
 
     Html(final_rendered)
 }
