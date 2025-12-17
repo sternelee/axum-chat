@@ -24,6 +24,8 @@
                     <li>✅ Input field automatically clears after sending message</li>
                     <li>✅ File attachments are also cleared after submission</li>
                     <li>✅ Input is disabled during AI response to prevent multiple submissions</li>
+                    <li>✅ Send button changes to Cancel button during AI response</li>
+                    <li>✅ Click Cancel to stop the AI response stream</li>
                 </ul>
             </div>
         </div>
@@ -78,11 +80,13 @@
                 <div class="card-body">
                     <h2 class="card-title">
                         <span class="loading loading-dots loading-md"></span>
-                        Loading Indicator
+                        Loading Indicator & Cancel
                     </h2>
-                    <p>While AI is processing your request, a loading animation appears in the message bubble:</p>
+                    <p>While AI is processing your request, a loading animation appears and you can cancel:</p>
                     <ul class="list-disc list-inside">
                         <li>Animated dots show activity</li>
+                        <li>Send button changes to Cancel (red X)</li>
+                        <li>Click Cancel to stop the request</li>
                         <li>Replaces with actual content when ready</li>
                         <li>Error message shown if request fails</li>
                     </ul>
@@ -113,7 +117,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <span><strong>Try it:</strong> Type a message in the input box below and click send. Notice how the input clears and becomes disabled while the AI is responding!</span>
+            <span><strong>Try it:</strong> Type a message and click send. The input clears, and the send button becomes a red Cancel button. Try clicking it to cancel the response!</span>
         </div>
     </div>
     
@@ -164,20 +168,57 @@
             input.value = '';
             input.style.height = 'auto';
             
-            // Disable input during AI response (demonstrating the feature)
+            // Change send button to cancel button during AI response
             const sendButton = document.querySelector('button[type="submit"]');
+            const originalButtonHTML = sendButton ? sendButton.innerHTML : '';
+            let timeoutId;
+            let cancelled = false;
+            
             input.disabled = true;
-            if (sendButton) sendButton.disabled = true;
+            if (sendButton) {
+                sendButton.type = 'button';
+                sendButton.classList.remove('btn-primary');
+                sendButton.classList.add('btn-error');
+                sendButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                `;
+                sendButton.title = 'Cancel';
+                
+                // Add cancel handler
+                sendButton.onclick = function() {
+                    cancelled = true;
+                    clearTimeout(timeoutId);
+                    const responseDiv = document.getElementById(`response-${messageCount}`);
+                    if (responseDiv) {
+                        responseDiv.innerHTML = '<span class="text-warning">Request cancelled by user</span>';
+                    }
+                    restoreButton();
+                };
+            }
+            
+            function restoreButton() {
+                if (sendButton) {
+                    sendButton.type = 'submit';
+                    sendButton.classList.remove('btn-error');
+                    sendButton.classList.add('btn-primary');
+                    sendButton.innerHTML = originalButtonHTML;
+                    sendButton.title = 'Send';
+                    sendButton.onclick = null;
+                }
+                input.disabled = false;
+            }
             
             // Simulate AI response after 2 seconds
-            setTimeout(() => {
-                const responseDiv = document.getElementById(`response-${messageCount}`);
-                if (responseDiv) {
-                    responseDiv.innerHTML = `<p>This is a simulated AI response to: "${escapeHtml(messageText)}"</p>`;
+            timeoutId = setTimeout(() => {
+                if (!cancelled) {
+                    const responseDiv = document.getElementById(`response-${messageCount}`);
+                    if (responseDiv) {
+                        responseDiv.innerHTML = `<p>This is a simulated AI response to: "${escapeHtml(messageText)}"</p>`;
+                    }
+                    restoreButton();
                 }
-                // Re-enable input after response
-                input.disabled = false;
-                if (sendButton) sendButton.disabled = false;
             }, 2000);
             
             // Scroll to bottom
