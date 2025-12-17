@@ -187,7 +187,9 @@
                 sendButton.title = 'Cancel';
                 
                 // Add cancel handler
-                sendButton.onclick = function() {
+                sendButton.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     cancelled = true;
                     clearTimeout(timeoutId);
                     const responseDiv = document.getElementById(`response-${messageCount}`);

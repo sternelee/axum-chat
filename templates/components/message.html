@@ -54,7 +54,9 @@
           sendButton.title = 'Cancel';
           
           // Add cancel handler
-          sendButton.onclick = function() {
+          sendButton.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             eventSource.close();
             messageContainer.innerHTML = '<span class="text-warning">Request cancelled by user</span>';
             restoreButton();
