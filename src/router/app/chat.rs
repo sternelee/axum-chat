@@ -700,21 +700,21 @@ pub async fn chat_generate(
                         }
                         GenerationEvent::Thinking(thinking) => {
                             acc.thinking.push_str(&thinking);
-                            // Send thinking update as JSON
-                            let thinking_html = render_thinking_section(&acc.thinking);
+                            // Send thinking content update as JSON
+                            let thinking_content = html_escape::encode_text(&acc.thinking);
                             let json_data = serde_json::json!({
                                 "type": "thinking_update",
-                                "html": thinking_html
+                                "content": thinking_content
                             });
                             Some((Ok(Event::default().data(json_data.to_string())), (rc, acc)))
                         }
                         GenerationEvent::Reasoning(reasoning) => {
                             acc.reasoning.push_str(&reasoning);
-                            // Send reasoning update as JSON
-                            let reasoning_html = render_reasoning_section(&acc.reasoning);
+                            // Send reasoning content update as JSON
+                            let reasoning_content = html_escape::encode_text(&acc.reasoning);
                             let json_data = serde_json::json!({
                                 "type": "reasoning_update",
-                                "html": reasoning_html
+                                "content": reasoning_content
                             });
                             Some((Ok(Event::default().data(json_data.to_string())), (rc, acc)))
                         }
