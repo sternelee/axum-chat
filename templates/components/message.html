@@ -20,15 +20,35 @@
   <div class="chat-bubble prose max-w-none">
     {% if variant == "ai-sse" %}
     <div id="message-container">
-      <!-- Messages will be appended here -->
+      <span class="loading loading-dots loading-md"></span>
     </div>
     <script>
       (function () {
         const eventSource = new EventSource('/chat/{{ chat_id }}/generate');
         const messageContainer = document.getElementById('message-container');
+        let hasContent = false;
+        
+        // Disable input during AI response
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.querySelector('#chat-form button[type="submit"]');
+        const voiceButton = document.getElementById('voice-btn');
+        const fileUploadLabel = document.querySelector('label[for="file-upload"]');
+        
+        if (messageInput) messageInput.disabled = true;
+        if (sendButton) sendButton.disabled = true;
+        if (voiceButton) voiceButton.disabled = true;
+        if (fileUploadLabel) fileUploadLabel.style.pointerEvents = 'none';
+
+        function enableInput() {
+          if (messageInput) messageInput.disabled = false;
+          if (sendButton) sendButton.disabled = false;
+          if (voiceButton) voiceButton.disabled = false;
+          if (fileUploadLabel) fileUploadLabel.style.pointerEvents = 'auto';
+        }
 
         eventSource.onmessage = function (event) {
           if (event.data) {
+            hasContent = true;
             messageContainer.innerHTML = event.data;
             // Auto-scroll during streaming
             const container = document.getElementById('chat-messages');
@@ -40,11 +60,16 @@
 
         eventSource.addEventListener('close', function (event) {
           eventSource.close();
+          enableInput();
         });
 
         eventSource.onerror = function (event) {
           console.error('SSE error:', event);
+          if (!hasContent) {
+            messageContainer.innerHTML = '<span class="text-error">Error loading response</span>';
+          }
           eventSource.close();
+          enableInput();
         };
       })();
     </script>

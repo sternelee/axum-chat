@@ -245,6 +245,21 @@
                 this.style.height = 'auto';
                 this.style.height = Math.min(this.scrollHeight, 128) + 'px';
             });
+            
+            // Clear input after successful form submission
+            document.getElementById('chat-form').addEventListener('htmx:afterSwap', function(event) {
+                // Clear the textarea
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                
+                // Clear selected files
+                selectedFiles = [];
+                updateAttachmentsPreview();
+                
+                // Reset file input
+                const fileInput = document.getElementById('file-upload');
+                fileInput.value = '';
+            });
         </script>
 
     </div>
