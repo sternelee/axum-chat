@@ -100,30 +100,33 @@
           if (event.data) {
             hasContent = true;
 
-            // Store collapse states before updating
+            // Store current collapse states
             const collapseStates = {};
-            const collapses = messageContainer.querySelectorAll('.collapse input[type="checkbox"]');
-            collapses.forEach((checkbox, index) => {
-              if (checkbox.id) {
-                collapseStates[checkbox.id] = checkbox.checked;
-              } else {
-                // If no ID, use index as key
-                collapseStates[`collapse-${index}`] = checkbox.checked;
-              }
+            messageContainer.querySelectorAll('.collapse input[type="checkbox"]').forEach(checkbox => {
+              if (checkbox.checked) collapseStates[checkbox.id] = true;
             });
 
-            // Update content
-            messageContainer.innerHTML = event.data;
+            // Create a temporary div to parse the new content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = event.data;
 
-            // Restore collapse states
-            const newCollapses = messageContainer.querySelectorAll('.collapse input[type="checkbox"]');
-            newCollapses.forEach((checkbox, index) => {
-              if (checkbox.id && collapseStates[checkbox.id] !== undefined) {
-                checkbox.checked = collapseStates[checkbox.id];
-              } else if (collapseStates[`collapse-${index}`] !== undefined) {
-                checkbox.checked = collapseStates[`collapse-${index}`];
-              }
-            });
+            // Check if we have collapse elements in the new content
+            const hasCollapses = tempDiv.querySelector('.collapse');
+
+            if (hasCollapses) {
+              // Replace the entire content but preserve collapse functionality
+              messageContainer.innerHTML = event.data;
+
+              // Manually restore collapse states since they might be reset
+              messageContainer.querySelectorAll('.collapse input[type="checkbox"]').forEach(checkbox => {
+                if (collapseStates[checkbox.id]) {
+                  checkbox.checked = true;
+                }
+              });
+            } else {
+              // No collapses in new content, just update normally
+              messageContainer.innerHTML = event.data;
+            }
 
             // Auto-scroll during streaming
             const container = document.getElementById('chat-messages');
