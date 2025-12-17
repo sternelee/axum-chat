@@ -99,7 +99,32 @@
         eventSource.onmessage = function (event) {
           if (event.data) {
             hasContent = true;
+
+            // Store collapse states before updating
+            const collapseStates = {};
+            const collapses = messageContainer.querySelectorAll('.collapse input[type="checkbox"]');
+            collapses.forEach((checkbox, index) => {
+              if (checkbox.id) {
+                collapseStates[checkbox.id] = checkbox.checked;
+              } else {
+                // If no ID, use index as key
+                collapseStates[`collapse-${index}`] = checkbox.checked;
+              }
+            });
+
+            // Update content
             messageContainer.innerHTML = event.data;
+
+            // Restore collapse states
+            const newCollapses = messageContainer.querySelectorAll('.collapse input[type="checkbox"]');
+            newCollapses.forEach((checkbox, index) => {
+              if (checkbox.id && collapseStates[checkbox.id] !== undefined) {
+                checkbox.checked = collapseStates[checkbox.id];
+              } else if (collapseStates[`collapse-${index}`] !== undefined) {
+                checkbox.checked = collapseStates[`collapse-${index}`];
+              }
+            });
+
             // Auto-scroll during streaming
             const container = document.getElementById('chat-messages');
             if (container) {
