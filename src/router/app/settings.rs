@@ -32,9 +32,18 @@ pub async fn settings_openai_api_key(
     let id = current_user.unwrap().id;
 
     // Default values for optional fields
-    let base_url = ai_settings.base_url.as_deref().unwrap_or("https://api.siliconflow.cn/v1");
-    let model = ai_settings.model.as_deref().unwrap_or("Qwen/Qwen2.5-7B-Instruct");
-    let system_prompt = ai_settings.system_prompt.as_deref().unwrap_or("You are a helpful assistant.");
+    let base_url = ai_settings
+        .base_url
+        .as_deref()
+        .unwrap_or("https://api.siliconflow.cn/v1");
+    let model = ai_settings
+        .model
+        .as_deref()
+        .unwrap_or("Qwen/Qwen2.5-7B-Instruct");
+    let system_prompt = ai_settings
+        .system_prompt
+        .as_deref()
+        .unwrap_or("You are a helpful assistant.");
     let temperature = ai_settings.temperature.unwrap_or(0.7);
     let top_p = ai_settings.top_p.unwrap_or(1.0);
     let max_tokens = ai_settings.max_tokens.unwrap_or(2000);

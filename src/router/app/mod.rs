@@ -48,26 +48,42 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .with_state(state.clone())
 }
 
-async fn demo(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
-    let rendered = state.tera.render("views/demo_extended_features.html", &tera::Context::new())
+async fn demo(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> axum::response::Html<String> {
+    let rendered = state
+        .tera
+        .render("views/demo_extended_features.html", &tera::Context::new())
         .unwrap_or_else(|e| format!("Error rendering demo page: {}", e));
     axum::response::Html(rendered)
 }
 
-async fn demo_file_voice(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
-    let rendered = state.tera.render("views/demo_file_voice.html", &tera::Context::new())
+async fn demo_file_voice(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> axum::response::Html<String> {
+    let rendered = state
+        .tera
+        .render("views/demo_file_voice.html", &tera::Context::new())
         .unwrap_or_else(|e| format!("Error rendering demo page: {}", e));
     axum::response::Html(rendered)
 }
 
-async fn demo_multi_turn(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
-    let rendered = state.tera.render("views/demo_multi_turn.html", &tera::Context::new())
+async fn demo_multi_turn(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> axum::response::Html<String> {
+    let rendered = state
+        .tera
+        .render("views/demo_multi_turn.html", &tera::Context::new())
         .unwrap_or_else(|e| format!("Error rendering demo page: {}", e));
     axum::response::Html(rendered)
 }
 
-async fn demo_loading(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
-    let rendered = state.tera.render("views/demo_loading.html", &tera::Context::new())
+async fn demo_loading(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> axum::response::Html<String> {
+    let rendered = state
+        .tera
+        .render("views/demo_loading.html", &tera::Context::new())
         .unwrap_or_else(|e| format!("Error rendering demo page: {}", e));
     axum::response::Html(rendered)
 }

@@ -1,4 +1,3 @@
-{% import "components/message.html" as macros %}
-
-{{ macros::message(variant="human", text=human_message_html) }}
-{{ macros::message(variant="ai-sse", text="") }}
+{% import "components/message.html" as macros %} {{
+macros::message(variant="human", text=human_message_html) }} {{
+macros::message(variant="ai-sse", text="") }}

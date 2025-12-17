@@ -1,29 +1,53 @@
 {% macro message(variant, text) %}
-<div class="chat {% if variant == 'human' %}chat-end{% else %}chat-start{% endif %}">
+<div
+  class="chat {% if variant == 'human' %}chat-end{% else %}chat-start{% endif %}"
+>
   <div class="chat-image avatar">
     <div class="w-10 rounded-full">
       {% if variant == 'human' %}
-      <img alt="User Avatar" src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+      <img
+        alt="User Avatar"
+        src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg"
+      />
       {% else %}
-      <div class="bg-neutral text-neutral-content grid place-content-center w-full h-full rounded-full">AI</div>
+      <div
+        class="bg-neutral text-neutral-content grid place-content-center w-full h-full rounded-full"
+      >
+        AI
+      </div>
       {% endif %}
     </div>
   </div>
   <div class="chat-header">
-    {% if variant == 'human' %}
-    You
-    {% else %}
-    Assistant
-    {% endif %}
+    {% if variant == 'human' %} You {% else %} Assistant {% endif %}
     <time class="text-xs opacity-50">12:45</time>
   </div>
-  <div class="chat-bubble prose max-w-none">
+  <div class="chat-bubble prose max-w-none min-w-full">
     {% if variant == "ai-sse" %}
     <div id="message-container">
-      <div id="thinking-container" class="collapse collapse-arrow bg-base-200 mb-4 hidden">
+      <div
+        id="thinking-container"
+        class="collapse collapse-arrow bg-base-200 mb-4 hidden"
+      >
         <input type="checkbox" id="thinking-collapse" class="hidden" />
-        <div class="collapse-title text-sm font-medium flex items-center gap-2 cursor-pointer" onclick="document.getElementById('thinking-container').classList.toggle('collapse-open')">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+        <div
+          class="collapse-title text-sm font-medium flex items-center gap-2 cursor-pointer"
+          onclick="document.getElementById('thinking-container').classList.toggle('collapse-open')"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+            />
+          </svg>
           Thinking Process
         </div>
         <div class="collapse-content">
@@ -31,10 +55,29 @@
         </div>
       </div>
 
-      <div id="reasoning-container" class="collapse collapse-arrow bg-base-200 mb-4 hidden">
+      <div
+        id="reasoning-container"
+        class="collapse collapse-arrow bg-base-200 mb-4 hidden"
+      >
         <input type="checkbox" id="reasoning-collapse" class="hidden" />
-        <div class="collapse-title text-sm font-medium flex items-center gap-2 cursor-pointer" onclick="document.getElementById('reasoning-container').classList.toggle('collapse-open')">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+        <div
+          class="collapse-title text-sm font-medium flex items-center gap-2 cursor-pointer"
+          onclick="document.getElementById('reasoning-container').classList.toggle('collapse-open')"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
           Reasoning
         </div>
         <div class="collapse-content">
@@ -48,54 +91,58 @@
     </div>
     <script>
       (function () {
-        const eventSource = new EventSource('/chat/{{ chat_id }}/generate');
-        const messageContainer = document.getElementById('message-container');
+        const eventSource = new EventSource("/chat/{{ chat_id }}/generate");
+        const messageContainer = document.getElementById("message-container");
         let hasContent = false;
 
         // Store event source globally for cancellation
         window.currentEventSource = eventSource;
 
         // Cancel request on page refresh/close
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener("beforeunload", function () {
           if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
             eventSource.close();
           }
         });
 
         // Disable input and change send button to cancel during AI response
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
-        const sendButtonIcon = sendButton?.querySelector('svg');
-        const voiceButton = document.getElementById('voice-btn');
-        const fileUploadLabel = document.querySelector('label[for="file-upload"]');
+        const messageInput = document.getElementById("message-input");
+        const sendButton = document.getElementById("send-button");
+        const sendButtonIcon = sendButton?.querySelector("svg");
+        const voiceButton = document.getElementById("voice-btn");
+        const fileUploadLabel = document.querySelector(
+          'label[for="file-upload"]',
+        );
 
         // Store original send button content
         const originalButtonHTML = sendButton?.innerHTML;
 
-        console.log('Send button found:', sendButton ? 'YES' : 'NO');
+        console.log("Send button found:", sendButton ? "YES" : "NO");
 
         // Change to cancel button
         if (sendButton) {
-          sendButton.type = 'button';
-          sendButton.classList.remove('btn-primary');
-          sendButton.classList.add('btn-error');
+          sendButton.type = "button";
+          sendButton.classList.remove("btn-primary");
+          sendButton.classList.add("btn-error");
           sendButton.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           `;
-          sendButton.title = 'Cancel';
+          sendButton.title = "Cancel";
 
           // Add cancel handler
-          sendButton.onclick = function(e) {
+          sendButton.onclick = function (e) {
             e.preventDefault();
             e.stopPropagation();
             eventSource.close();
             // Append cancellation message instead of replacing content
             if (hasContent) {
-              messageContainer.innerHTML += '<div class="mt-2 text-warning italic">Request cancelled by user</div>';
+              messageContainer.innerHTML +=
+                '<div class="mt-2 text-warning italic">Request cancelled by user</div>';
             } else {
-              messageContainer.innerHTML = '<span class="text-warning">Request cancelled by user</span>';
+              messageContainer.innerHTML =
+                '<span class="text-warning">Request cancelled by user</span>';
             }
             restoreButton();
           };
@@ -103,20 +150,20 @@
 
         if (messageInput) messageInput.disabled = true;
         if (voiceButton) voiceButton.disabled = true;
-        if (fileUploadLabel) fileUploadLabel.style.pointerEvents = 'none';
+        if (fileUploadLabel) fileUploadLabel.style.pointerEvents = "none";
 
         function restoreButton() {
           if (sendButton && originalButtonHTML) {
-            sendButton.type = 'submit';
-            sendButton.classList.remove('btn-error');
-            sendButton.classList.add('btn-primary');
+            sendButton.type = "submit";
+            sendButton.classList.remove("btn-error");
+            sendButton.classList.add("btn-primary");
             sendButton.innerHTML = originalButtonHTML;
-            sendButton.title = 'Send';
+            sendButton.title = "Send";
             sendButton.onclick = null;
           }
           if (messageInput) messageInput.disabled = false;
           if (voiceButton) voiceButton.disabled = false;
-          if (fileUploadLabel) fileUploadLabel.style.pointerEvents = 'auto';
+          if (fileUploadLabel) fileUploadLabel.style.pointerEvents = "auto";
           window.currentEventSource = null;
         }
 
@@ -128,27 +175,32 @@
               // Parse event data to check if it's a special update
               const data = JSON.parse(event.data);
 
-              if (data.type === 'thinking_update') {
+              if (data.type === "thinking_update") {
                 // Update only thinking content, preserve collapse structure
-                const thinkingContainer = document.getElementById('thinking-container');
-                const thinkingContent = thinkingContainer ?
-                  thinkingContainer.querySelector('.collapse-content div') : null;
+                const thinkingContainer =
+                  document.getElementById("thinking-container");
+                const thinkingContent = thinkingContainer
+                  ? thinkingContainer.querySelector(".collapse-content div")
+                  : null;
                 if (thinkingContainer && thinkingContent) {
                   // Show the container and make it interactive
-                  thinkingContainer.classList.remove('hidden');
-                  thinkingContainer.classList.add('collapse-open');
+                  thinkingContainer.classList.remove("hidden");
+                  thinkingContainer.classList.add("collapse-open");
                   // Update content
                   thinkingContent.innerHTML = data.content;
                 }
-              } else if (data.type === 'reasoning_update') {
+              } else if (data.type === "reasoning_update") {
                 // Update only reasoning content, preserve collapse structure
-                const reasoningContainer = document.getElementById('reasoning-container');
-                const reasoningContent = reasoningContainer ?
-                  reasoningContainer.querySelector('.collapse-content div') : null;
+                const reasoningContainer = document.getElementById(
+                  "reasoning-container",
+                );
+                const reasoningContent = reasoningContainer
+                  ? reasoningContainer.querySelector(".collapse-content div")
+                  : null;
                 if (reasoningContainer && reasoningContent) {
                   // Show the container and make it interactive
-                  reasoningContainer.classList.remove('hidden');
-                  reasoningContainer.classList.add('collapse-open');
+                  reasoningContainer.classList.remove("hidden");
+                  reasoningContainer.classList.add("collapse-open");
                   // Update content
                   reasoningContent.innerHTML = data.content;
                 }
@@ -162,34 +214,31 @@
             }
 
             // Auto-scroll during streaming
-            const container = document.getElementById('chat-messages');
+            const container = document.getElementById("chat-messages");
             if (container) {
               container.scrollTop = container.scrollHeight;
             }
           }
         };
 
-        eventSource.addEventListener('close', function (event) {
+        eventSource.addEventListener("close", function (event) {
           eventSource.close();
           restoreButton();
         });
 
         eventSource.onerror = function (event) {
-          console.error('SSE error:', event);
+          console.error("SSE error:", event);
           if (!hasContent) {
-            messageContainer.innerHTML = '<span class="text-error">Error loading response</span>';
+            messageContainer.innerHTML =
+              '<span class="text-error">Error loading response</span>';
           }
           eventSource.close();
           restoreButton();
         };
       })();
     </script>
-    {% else %}
-    {{text | safe}}
-    {% endif %}
+    {% else %} {{text | safe}} {% endif %}
   </div>
-  <div class="chat-footer opacity-50">
-    Delivered
-  </div>
+  <div class="chat-footer opacity-50">Delivered</div>
 </div>
 {% endmacro input %}

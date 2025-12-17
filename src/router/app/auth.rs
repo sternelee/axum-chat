@@ -79,7 +79,9 @@ pub async fn login_form(
         WHERE users.email = $1
         "#,
         log_in.email,
-    ).fetch_one(&*state.pool).await
+    )
+    .fetch_one(&*state.pool)
+    .await
     .map_err(|_| LogInError::InvalidCredentials)?;
 
     if user.password != log_in.password {

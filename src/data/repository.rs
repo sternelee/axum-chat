@@ -44,8 +44,9 @@ impl ChatRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        let pairs = rows.into_iter().map(|row| {
-            ChatMessagePair {
+        let pairs = rows
+            .into_iter()
+            .map(|row| ChatMessagePair {
                 id: row.id,
                 message_block_id: row.message_block_id,
                 chat_id: row.chat_id,
@@ -62,8 +63,8 @@ impl ChatRepository {
                 usage_completion_tokens: row.usage_completion_tokens,
                 usage_total_tokens: row.usage_total_tokens,
                 sources: row.sources,
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(pairs)
     }

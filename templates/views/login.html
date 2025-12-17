@@ -1,75 +1,99 @@
 <div class="hero min-h-[calc(100vh-60px)] bg-base-200">
-    <div class="hero-content flex-col">
-        <div class="text-center">
-            <h1 class="text-5xl font-bold mb-4">Welcome Back!</h1>
-            <p class="text-lg">Login to access your RustGPT chat interface</p>
-        </div>
-
-        <div class="card w-full max-w-md bg-base-100 shadow-2xl">
-            <div class="card-body">
-                <h2 class="card-title text-2xl justify-center mb-6">
-                    🔐 Login to Your Account
-                </h2>
-
-                <form action="/login" method="post" class="space-y-4">
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Email Address</span>
-                        </label>
-                        <input
-                            name="email"
-                            type="email"
-                            placeholder="you@example.com"
-                            class="input input-bordered w-full"
-                            required
-                        />
-                    </div>
-
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Password</span>
-                        </label>
-                        <input
-                            name="password"
-                            type="password"
-                            placeholder="Enter your password"
-                            class="input input-bordered w-full"
-                            required
-                        />
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <div class="form-control">
-                            <label class="label cursor-pointer">
-                                <input type="checkbox" class="checkbox checkbox-primary" />
-                                <span class="label-text ml-2">Remember me</span>
-                            </label>
-                        </div>
-                        <a href="#" class="link link-primary link-hover text-sm">Forgot password?</a>
-                    </div>
-
-                    <div class="card-actions justify-between mt-6">
-                        <button type="submit" class="btn btn-primary w-full">
-                            Login
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 ml-2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                        </button>
-                    </div>
-                </form>
-
-                <div class="divider">OR</div>
-
-                <div class="text-center">
-                    <p class="text-sm text-base-content/70">Don't have an account yet?</p>
-                    <a href="/signup" class="btn btn-outline btn-wide mt-2">
-                        Sign Up
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 ml-2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                    </a>
-                </div>
-            </div>
-        </div>
+  <div class="hero-content flex-col">
+    <div class="text-center">
+      <h1 class="text-5xl font-bold mb-4">Welcome Back!</h1>
+      <p class="text-lg">Login to access your RustGPT chat interface</p>
     </div>
+
+    <div class="card w-full max-w-md bg-base-100 shadow-2xl">
+      <div class="card-body">
+        <h2 class="card-title text-2xl justify-center mb-6">
+          🔐 Login to Your Account
+        </h2>
+
+        <form action="/login" method="post" class="space-y-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Email Address</span>
+            </label>
+            <input
+              name="email"
+              type="email"
+              placeholder="you@example.com"
+              class="input input-bordered w-full"
+              required
+            />
+          </div>
+
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Password</span>
+            </label>
+            <input
+              name="password"
+              type="password"
+              placeholder="Enter your password"
+              class="input input-bordered w-full"
+              required
+            />
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div class="form-control">
+              <label class="label cursor-pointer">
+                <input type="checkbox" class="checkbox checkbox-primary" />
+                <span class="label-text ml-2">Remember me</span>
+              </label>
+            </div>
+            <a href="#" class="link link-primary link-hover text-sm"
+              >Forgot password?</a
+            >
+          </div>
+
+          <div class="card-actions justify-between mt-6">
+            <button type="submit" class="btn btn-primary w-full">
+              Login
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+                stroke="currentColor"
+                class="w-4 h-4 ml-2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
+            </button>
+          </div>
+        </form>
+
+        <div class="divider">OR</div>
+
+        <div class="text-center">
+          <p class="text-sm text-base-content/70">Don't have an account yet?</p>
+          <a href="/signup" class="btn btn-outline btn-wide mt-2">
+            Sign Up
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+              class="w-4 h-4 ml-2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

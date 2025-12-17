@@ -1,224 +1,458 @@
 <div title="Change Theme" class="dropdown dropdown-end block">
-    <div tabindex="0" role="button" class="btn group btn-sm gap-1.5 px-1.5 btn-ghost" aria-label="Change Theme">
-        <div class="bg-base-100 group-hover:border-base-content/20 border-base-content/10 grid shrink-0 grid-cols-2 gap-0.5 rounded-md border p-1 transition-colors">
+  <div
+    tabindex="0"
+    role="button"
+    class="btn group btn-sm gap-1.5 px-1.5 btn-ghost"
+    aria-label="Change Theme"
+  >
+    <div
+      class="bg-base-100 group-hover:border-base-content/20 border-base-content/10 grid shrink-0 grid-cols-2 gap-0.5 rounded-md border p-1 transition-colors"
+    >
+      <div class="bg-base-content size-1 rounded-full"></div>
+      <div class="bg-primary size-1 rounded-full"></div>
+      <div class="bg-secondary size-1 rounded-full"></div>
+      <div class="bg-accent size-1 rounded-full"></div>
+    </div>
+    <svg
+      width="12px"
+      height="12px"
+      class="mt-px hidden size-2 fill-current opacity-60 sm:inline-block"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 2048 2048"
+    >
+      <path
+        d="M1799 349l242 241-1017 1017L7 590l242-241 775 775 775-775z"
+      ></path>
+    </svg>
+  </div>
+  <div
+    tabindex="0"
+    class="dropdown-content bg-base-200 text-base-content rounded-box top-px h-[30.5rem] max-h-[calc(100vh-8.6rem)] overflow-y-auto border-[length:var(--border)] border-white/5 shadow-2xl outline-[length:var(--border)] outline-black/5 mt-16"
+  >
+    <ul class="menu w-56">
+      <li class="menu-title text-xs">Theme</li>
+
+      <!-- Light Themes -->
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="light"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="light"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
             <div class="bg-base-content size-1 rounded-full"></div>
             <div class="bg-primary size-1 rounded-full"></div>
             <div class="bg-secondary size-1 rounded-full"></div>
             <div class="bg-accent size-1 rounded-full"></div>
-        </div>
-        <svg width="12px" height="12px" class="mt-px hidden size-2 fill-current opacity-60 sm:inline-block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048">
-            <path d="M1799 349l242 241-1017 1017L7 590l242-241 775 775 775-775z"></path>
-        </svg>
-    </div>
-    <div tabindex="0" class="dropdown-content bg-base-200 text-base-content rounded-box top-px h-[30.5rem] max-h-[calc(100vh-8.6rem)] overflow-y-auto border-[length:var(--border)] border-white/5 shadow-2xl outline-[length:var(--border)] outline-black/5 mt-16">
-        <ul class="menu w-56">
-            <li class="menu-title text-xs">Theme</li>
+          </div>
+          <div class="w-32 truncate">Light</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <!-- Light Themes -->
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="light" data-act-class="[&_svg]:visible">
-                <div data-theme="light" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Light</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="dark"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="dark"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Dark</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="dark" data-act-class="[&_svg]:visible">
-                <div data-theme="dark" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Dark</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="cupcake"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="cupcake"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Cupcake</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="cupcake" data-act-class="[&_svg]:visible">
-                <div data-theme="cupcake" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Cupcake</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="bumblebee"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="bumblebee"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Bumblebee</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="bumblebee" data-act-class="[&_svg]:visible">
-                <div data-theme="bumblebee" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Bumblebee</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="emerald"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="emerald"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Emerald</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="emerald" data-act-class="[&_svg]:visible">
-                <div data-theme="emerald" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Emerald</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="corporate"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="corporate"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Corporate</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="corporate" data-act-class="[&_svg]:visible">
-                <div data-theme="corporate" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Corporate</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="synthwave"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="synthwave"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Synthwave</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="synthwave" data-act-class="[&_svg]:visible">
-                <div data-theme="synthwave" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Synthwave</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="retro"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="retro"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Retro</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="retro" data-act-class="[&_svg]:visible">
-                <div data-theme="retro" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Retro</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="cyberpunk"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="cyberpunk"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Cyberpunk</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="cyberpunk" data-act-class="[&_svg]:visible">
-                <div data-theme="cyberpunk" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Cyberpunk</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="valentine"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="valentine"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Valentine</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="valentine" data-act-class="[&_svg]:visible">
-                <div data-theme="valentine" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Valentine</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
+      <!-- Continue with more themes... -->
+      <li>
+        <button
+          class="gap-3 px-2 theme-btn"
+          data-set-theme="sunset"
+          data-act-class="[&_svg]:visible"
+        >
+          <div
+            data-theme="sunset"
+            class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm"
+          >
+            <div class="bg-base-content size-1 rounded-full"></div>
+            <div class="bg-primary size-1 rounded-full"></div>
+            <div class="bg-secondary size-1 rounded-full"></div>
+            <div class="bg-accent size-1 rounded-full"></div>
+          </div>
+          <div class="w-32 truncate">Sunset</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="theme-checkmark invisible h-3 w-3 shrink-0"
+          >
+            <path
+              d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"
+            ></path>
+          </svg>
+        </button>
+      </li>
 
-            <!-- Continue with more themes... -->
-            <li><button class="gap-3 px-2 theme-btn" data-set-theme="sunset" data-act-class="[&_svg]:visible">
-                <div data-theme="sunset" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
-                    <div class="bg-base-content size-1 rounded-full"></div>
-                    <div class="bg-primary size-1 rounded-full"></div>
-                    <div class="bg-secondary size-1 rounded-full"></div>
-                    <div class="bg-accent size-1 rounded-full"></div>
-                </div>
-                <div class="w-32 truncate">Sunset</div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="theme-checkmark invisible h-3 w-3 shrink-0">
-                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
-                </svg>
-            </button></li>
-
-            <li></li>
-            <li>
-                <a href="/theme-generator/">
-                    <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 fill-current" viewBox="0 0 512 512">
-                        <path d="M96,208H48a16,16,0,0,1,0-32H96a16,16,0,0,1,0,32Z"></path>
-                        <line x1="90.25" y1="90.25" x2="124.19" y2="124.19"></line>
-                        <path d="M124.19,140.19a15.91,15.91,0,0,1-11.31-4.69L78.93,101.56a16,16,0,0,1,22.63-22.63l33.94,33.95a16,16,0,0,1-11.31,27.31Z"></path>
-                        <path d="M192,112a16,16,0,0,1-16-16V48a16,16,0,0,1,32,0V96A16,16,0,0,1,192,112Z"></path>
-                        <line x1="293.89" y1="90.25" x2="259.95" y2="124.19"></line>
-                        <path d="M260,140.19a16,16,0,0,1-11.31-27.31l33.94-33.95a16,16,0,0,1,22.63,22.63L271.27,135.5A15.94,15.94,0,0,1,260,140.19Z"></path>
-                        <line x1="124.19" y1="259.95" x2="90.25" y2="293.89"></line>
-                        <path d="M90.25,309.89a16,16,0,0,1-11.32-27.31l33.95-33.94a16,16,0,0,1,22.62,22.63l-33.94,33.94A16,16,0,0,1,90.25,309.89Z"></path>
-                        <path d="M219,151.83a26,26,0,0,0-36.77,0l-30.43,30.43a26,26,0,0,0,0,36.77L208.76,276a4,4,0,0,0,5.66,0L276,214.42a4,4,0,0,0,0-5.66Z"></path>
-                        <path d="M472.31,405.11,304.24,237a4,4,0,0,0-5.66,0L237,298.58a4,4,0,0,0,0,5.66L405.12,472.31a26,26,0,0,0,36.76,0l30.43-30.43h0A26,26,0,0,0,472.31,405.11Z"></path>
-                    </svg>
-                    <div class="grow text-sm font-bold">Make your theme!</div>
-                </a>
-            </li>
-        </ul>
-    </div>
+      <li></li>
+      <li>
+        <a href="/theme-generator/">
+          <svg
+            width="24"
+            height="24"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4 fill-current"
+            viewBox="0 0 512 512"
+          >
+            <path d="M96,208H48a16,16,0,0,1,0-32H96a16,16,0,0,1,0,32Z"></path>
+            <line x1="90.25" y1="90.25" x2="124.19" y2="124.19"></line>
+            <path
+              d="M124.19,140.19a15.91,15.91,0,0,1-11.31-4.69L78.93,101.56a16,16,0,0,1,22.63-22.63l33.94,33.95a16,16,0,0,1-11.31,27.31Z"
+            ></path>
+            <path
+              d="M192,112a16,16,0,0,1-16-16V48a16,16,0,0,1,32,0V96A16,16,0,0,1,192,112Z"
+            ></path>
+            <line x1="293.89" y1="90.25" x2="259.95" y2="124.19"></line>
+            <path
+              d="M260,140.19a16,16,0,0,1-11.31-27.31l33.94-33.95a16,16,0,0,1,22.63,22.63L271.27,135.5A15.94,15.94,0,0,1,260,140.19Z"
+            ></path>
+            <line x1="124.19" y1="259.95" x2="90.25" y2="293.89"></line>
+            <path
+              d="M90.25,309.89a16,16,0,0,1-11.32-27.31l33.95-33.94a16,16,0,0,1,22.62,22.63l-33.94,33.94A16,16,0,0,1,90.25,309.89Z"
+            ></path>
+            <path
+              d="M219,151.83a26,26,0,0,0-36.77,0l-30.43,30.43a26,26,0,0,0,0,36.77L208.76,276a4,4,0,0,0,5.66,0L276,214.42a4,4,0,0,0,0-5.66Z"
+            ></path>
+            <path
+              d="M472.31,405.11,304.24,237a4,4,0,0,0-5.66,0L237,298.58a4,4,0,0,0,0,5.66L405.12,472.31a26,26,0,0,0,36.76,0l30.43-30.43h0A26,26,0,0,0,472.31,405.11Z"
+            ></path>
+          </svg>
+          <div class="grow text-sm font-bold">Make your theme!</div>
+        </a>
+      </li>
+    </ul>
+  </div>
 </div>
 
 <script>
-// Theme selector functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const themeButtons = document.querySelectorAll('[data-set-theme]');
-    const savedTheme = localStorage.getItem('theme') || 'sunset';
+  // Theme selector functionality
+  document.addEventListener("DOMContentLoaded", function () {
+    const themeButtons = document.querySelectorAll("[data-set-theme]");
+    const savedTheme = localStorage.getItem("theme") || "sunset";
 
     // Apply saved theme
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.setAttribute("data-theme", savedTheme);
 
     // Update checkmarks
     updateCheckmarks(savedTheme);
 
     // Add click handlers
-    themeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const theme = this.getAttribute('data-set-theme');
-            setTheme(theme);
-        });
+    themeButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        const theme = this.getAttribute("data-set-theme");
+        setTheme(theme);
+      });
     });
 
     function updateCheckmarks(theme) {
-        themeButtons.forEach(button => {
-            const checkmark = button.querySelector('.theme-checkmark');
-            if (button.getAttribute('data-set-theme') === theme) {
-                checkmark.classList.remove('invisible');
-                checkmark.classList.add('visible');
-            } else {
-                checkmark.classList.remove('visible');
-                checkmark.classList.add('invisible');
-            }
-        });
+      themeButtons.forEach((button) => {
+        const checkmark = button.querySelector(".theme-checkmark");
+        if (button.getAttribute("data-set-theme") === theme) {
+          checkmark.classList.remove("invisible");
+          checkmark.classList.add("visible");
+        } else {
+          checkmark.classList.remove("visible");
+          checkmark.classList.add("invisible");
+        }
+      });
     }
 
     // Make setTheme function globally available
-    window.setTheme = function(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('theme', theme);
-        updateCheckmarks(theme);
+    window.setTheme = function (theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("theme", theme);
+      updateCheckmarks(theme);
     };
-});
+  });
 </script>

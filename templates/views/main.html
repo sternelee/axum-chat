@@ -1,28 +1,32 @@
-<!DOCTYPE html>
+<!doctype html>
 <html data-theme="sunset" class="h-full overflow-hidden">
-
-<head>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+  <head>
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@5"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css"
+      rel="stylesheet"
+      type="text/css"
+    />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
-</head>
+  </head>
 
-<body class="h-full overflow-hidden flex flex-col">
+  <body class="h-full overflow-hidden flex flex-col">
     {% include "components/header.html" %}
-    <main class="flex-1 overflow-hidden flex flex-col">
-        {{ view | safe }}
-    </main>
+    <main class="flex-1 overflow-hidden flex flex-col">{{ view | safe }}</main>
 
-    {% if with_footer %}
-    {% include "components/footer.html" %}
-    {% endif %}
-</body>
+    {% if with_footer %} {% include "components/footer.html" %} {% endif %}
+  </body>
 
-<script>
+  <script>
     // Load saved theme on all pages
     (function() {
         const savedTheme = localStorage.getItem('theme') || 'sunset';
         document.documentElement.setAttribute('data-theme', savedTheme');
     })();
-</script>
+  </script>
+</html>

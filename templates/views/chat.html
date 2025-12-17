@@ -1,310 +1,488 @@
 {% import "components/message.html" as macros %}
 
 <div class="drawer lg:drawer-open h-full">
-    <input id="my-drawer-2" type="checkbox" class="drawer-toggle" />
-    <div class="drawer-content flex flex-col bg-base-100 relative h-full overflow-hidden">
-        <!-- Page content here -->
+  <input id="my-drawer-2" type="checkbox" class="drawer-toggle" />
+  <div
+    class="drawer-content flex flex-col bg-base-100 relative h-full overflow-hidden"
+  >
+    <!-- Page content here -->
 
-        <!-- Mobile toggle -->
-        <div class="lg:hidden p-2 border-b border-base-200 flex items-center gap-2 sticky top-0 bg-base-100 z-10">
-            <label for="my-drawer-2" class="btn btn-ghost btn-sm drawer-button">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                    class="inline-block w-5 h-5 stroke-current">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
-                    </path>
+    <!-- Mobile toggle -->
+    <div
+      class="lg:hidden p-2 border-b border-base-200 flex items-center gap-2 sticky top-0 bg-base-100 z-10"
+    >
+      <label for="my-drawer-2" class="btn btn-ghost btn-sm drawer-button">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          class="inline-block w-5 h-5 stroke-current"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"
+          ></path>
+        </svg>
+      </label>
+      <span class="font-semibold">Chat History</span>
+    </div>
+
+    <div
+      id="chat-messages"
+      class="flex-grow overflow-y-auto p-4 pb-32 min-h-0 scroll-smooth"
+    >
+      {% if current_user.model %}
+      <div class="flex justify-center gap-2 mb-4 sticky top-0 z-10">
+        <div class="badge badge-primary badge-lg">Current Model</div>
+        <div class="badge badge-outline badge-lg">{{ current_user.model }}</div>
+      </div>
+      {% endif %}
+
+      <div class="flex flex-col gap-4 max-w-4xl mx-auto">
+        {% if chat_message_pairs %} {% for pair in chat_message_pairs %} {{
+        macros::message(variant="human", text=pair.human_message_html) }} {% if
+        pair.pair.ai_message %} {{ macros::message(variant="ai",
+        text=pair.ai_message_html) }} {% elif not pair.pair.ai_message and
+        loop.last %} {{ macros::message(variant="ai-sse", text="") }} {% else %}
+        {{ macros::message(variant="ai", text="<em class="text-gray-500"
+          >Response was cancelled or incomplete</em
+        >") }} {% endif %} {% endfor %} {% endif %}
+
+        <div id="new-message"></div>
+      </div>
+    </div>
+    <script>
+      function scrollToBottom() {
+        const container = document.getElementById("chat-messages");
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+
+      // Scroll on load
+      window.addEventListener("load", scrollToBottom);
+
+      // Scroll after HTMX swap (new user message)
+      document.body.addEventListener("htmx:afterSwap", function (evt) {
+        if (evt.detail.target.id === "new-message") {
+          scrollToBottom();
+        }
+      });
+    </script>
+
+    <div
+      class="absolute bottom-14 left-0 right-0 bg-base-100/80 backdrop-blur-sm p-4 border-t border-base-200"
+    >
+      <div class="max-w-4xl mx-auto">
+        {% if chat_id is undefined %}
+        <form id="chat-form">
+          <div class="flex flex-col gap-2">
+            <!-- File attachments preview -->
+            <div id="attachments-preview" class="hidden flex-wrap gap-2"></div>
+
+            <div class="flex gap-2">
+              <div
+                class="flex-1 flex gap-2 items-end shadow-lg rounded-lg bg-base-100 p-2"
+              >
+                <!-- File upload button -->
+                <label
+                  for="file-upload"
+                  class="btn btn-ghost btn-sm btn-circle"
+                  title="Attach file or image"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                    />
+                  </svg>
+                </label>
+                <input
+                  type="file"
+                  id="file-upload"
+                  name="files"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  class="hidden"
+                  onchange="handleFileSelect(event)"
+                />
+
+                <!-- Message input -->
+                <textarea
+                  name="message"
+                  id="message-input"
+                  class="textarea textarea-ghost flex-1 resize-none min-h-[2.5rem] max-h-32 overflow-hidden"
+                  placeholder="Type your message here..."
+                  rows="1"
+                ></textarea>
+
+                <!-- Voice record button -->
+                <button
+                  type="button"
+                  id="voice-btn"
+                  class="btn btn-ghost btn-sm btn-circle"
+                  title="Record voice message"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Send button -->
+              <button
+                type="submit"
+                class="btn btn-primary"
+                hx-post="/chat"
+                hx-include="[name='message']"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                  />
                 </svg>
-            </label>
-            <span class="font-semibold">Chat History</span>
-        </div>
-
-        <div id="chat-messages" class="flex-grow overflow-y-auto p-4 pb-32 min-h-0 scroll-smooth">
-            {% if current_user.model %}
-            <div class="flex justify-center gap-2 mb-4 sticky top-0 z-10">
-                <div class="badge badge-primary badge-lg">Current Model</div>
-                <div class="badge badge-outline badge-lg">{{ current_user.model }}</div>
+              </button>
             </div>
-            {% endif %}
+          </div>
+        </form>
+        {% else %}
+        <form
+          method="post"
+          id="chat-form"
+          hx-post="/chat/{{ chat_id }}/message/add"
+          hx-target="#new-message"
+          hx-swap="beforebegin"
+          hx-encoding="multipart/form-data"
+        >
+          <div class="flex flex-col gap-2">
+            <!-- File attachments preview -->
+            <div id="attachments-preview" class="hidden flex-wrap gap-2"></div>
 
+            <div class="flex gap-2">
+              <div
+                class="flex-1 flex gap-2 items-end shadow-lg rounded-lg bg-base-100 p-2"
+              >
+                <!-- File upload button -->
+                <label
+                  for="file-upload"
+                  class="btn btn-ghost btn-sm btn-circle"
+                  title="Attach file or image"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                    />
+                  </svg>
+                </label>
+                <input
+                  type="file"
+                  id="file-upload"
+                  name="files"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  class="hidden"
+                  onchange="handleFileSelect(event)"
+                />
 
-            <div class="flex flex-col gap-4 max-w-4xl mx-auto">
-                {% if chat_message_pairs %}
-                {% for pair in chat_message_pairs %}
+                <!-- Message input -->
+                <textarea
+                  name="message"
+                  id="message-input"
+                  class="textarea textarea-ghost flex-1 resize-none min-h-[2.5rem] max-h-32 overflow-hidden"
+                  placeholder="Type your message here..."
+                  rows="1"
+                ></textarea>
 
-                {{ macros::message(variant="human", text=pair.human_message_html) }}
+                <!-- Voice record button -->
+                <button
+                  type="button"
+                  id="voice-btn"
+                  class="btn btn-ghost btn-sm btn-circle"
+                  title="Record voice message"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                    />
+                  </svg>
+                </button>
+              </div>
 
-                {% if pair.pair.ai_message %}
-                {{ macros::message(variant="ai", text=pair.ai_message_html) }}
-                {% elif not pair.pair.ai_message and loop.last %}
-                {{ macros::message(variant="ai-sse", text="") }}
-                {% else %}
-                {{ macros::message(variant="ai", text="<em class='text-gray-500'>Response was cancelled or incomplete</em>") }}
-                {% endif %}
-
-                {% endfor %}
-                {% endif %}
-
-                <div id="new-message"></div>
+              <!-- Send button -->
+              <button type="submit" id="send-button" class="btn btn-primary">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                  />
+                </svg>
+              </button>
             </div>
-        </div>
-        <script>
-            function scrollToBottom() {
-                const container = document.getElementById('chat-messages');
-                if (container) {
-                    container.scrollTop = container.scrollHeight;
-                }
-            }
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
 
-            // Scroll on load
-            window.addEventListener('load', scrollToBottom);
+    <script>
+      // File upload handling
+      let selectedFiles = [];
 
-            // Scroll after HTMX swap (new user message)
-            document.body.addEventListener('htmx:afterSwap', function (evt) {
-                if (evt.detail.target.id === 'new-message') {
-                    scrollToBottom();
-                }
-            });
-        </script>
+      function handleFileSelect(event) {
+        const files = Array.from(event.target.files);
+        selectedFiles = selectedFiles.concat(files);
+        updateAttachmentsPreview();
+      }
 
-        <div class="absolute bottom-14 left-0 right-0 bg-base-100/80 backdrop-blur-sm p-4 border-t border-base-200">
-            <div class="max-w-4xl mx-auto">
-                {% if chat_id is undefined %}
-                <form id="chat-form">
-                    <div class="flex flex-col gap-2">
-                        <!-- File attachments preview -->
-                        <div id="attachments-preview" class="hidden flex-wrap gap-2"></div>
+      function updateAttachmentsPreview() {
+        const preview = document.getElementById("attachments-preview");
+        if (selectedFiles.length === 0) {
+          preview.classList.add("hidden");
+          return;
+        }
 
-                        <div class="flex gap-2">
-                            <div class="flex-1 flex gap-2 items-end shadow-lg rounded-lg bg-base-100 p-2">
-                                <!-- File upload button -->
-                                <label for="file-upload" class="btn btn-ghost btn-sm btn-circle" title="Attach file or image">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                    </svg>
-                                </label>
-                                <input type="file" id="file-upload" name="files" multiple accept="image/*,.pdf,.doc,.docx,.txt" class="hidden" onchange="handleFileSelect(event)">
-
-                                <!-- Message input -->
-                                <textarea name="message" id="message-input" class="textarea textarea-ghost flex-1 resize-none min-h-[2.5rem] max-h-32 overflow-hidden"
-                                    placeholder="Type your message here..." rows="1"></textarea>
-
-                                <!-- Voice record button -->
-                                <button type="button" id="voice-btn" class="btn btn-ghost btn-sm btn-circle" title="Record voice message">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <!-- Send button -->
-                            <button type="submit" class="btn btn-primary" hx-post="/chat" hx-include="[name='message']">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                {% else %}
-                <form method="post" id="chat-form" hx-post="/chat/{{ chat_id }}/message/add" hx-target="#new-message"
-                    hx-swap="beforebegin" hx-encoding="multipart/form-data">
-                    <div class="flex flex-col gap-2">
-                        <!-- File attachments preview -->
-                        <div id="attachments-preview" class="hidden flex-wrap gap-2"></div>
-
-                        <div class="flex gap-2">
-                            <div class="flex-1 flex gap-2 items-end shadow-lg rounded-lg bg-base-100 p-2">
-                                <!-- File upload button -->
-                                <label for="file-upload" class="btn btn-ghost btn-sm btn-circle" title="Attach file or image">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                    </svg>
-                                </label>
-                                <input type="file" id="file-upload" name="files" multiple accept="image/*,.pdf,.doc,.docx,.txt" class="hidden" onchange="handleFileSelect(event)">
-
-                                <!-- Message input -->
-                                <textarea name="message" id="message-input" class="textarea textarea-ghost flex-1 resize-none min-h-[2.5rem] max-h-32 overflow-hidden"
-                                    placeholder="Type your message here..." rows="1"></textarea>
-
-                                <!-- Voice record button -->
-                                <button type="button" id="voice-btn" class="btn btn-ghost btn-sm btn-circle" title="Record voice message">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <!-- Send button -->
-                            <button type="submit" id="send-button" class="btn btn-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                {% endif %}
-            </div>
-        </div>
-
-        <script>
-            // File upload handling
-            let selectedFiles = [];
-
-            function handleFileSelect(event) {
-                const files = Array.from(event.target.files);
-                selectedFiles = selectedFiles.concat(files);
-                updateAttachmentsPreview();
-            }
-
-            function updateAttachmentsPreview() {
-                const preview = document.getElementById('attachments-preview');
-                if (selectedFiles.length === 0) {
-                    preview.classList.add('hidden');
-                    return;
-                }
-
-                preview.classList.remove('hidden');
-                preview.innerHTML = selectedFiles.map((file, index) => {
-                    const isImage = file.type.startsWith('image/');
-                    const icon = isImage ? '🖼️' : '📄';
-                    return `
+        preview.classList.remove("hidden");
+        preview.innerHTML = selectedFiles
+          .map((file, index) => {
+            const isImage = file.type.startsWith("image/");
+            const icon = isImage ? "🖼️" : "📄";
+            return `
                         <div class="badge badge-lg gap-2">
                             <span>${icon} ${file.name}</span>
                             <button type="button" class="btn btn-ghost btn-xs btn-circle" onclick="removeFile(${index})">✕</button>
                         </div>
                     `;
-                }).join('');
-            }
+          })
+          .join("");
+      }
 
-            function removeFile(index) {
-                selectedFiles.splice(index, 1);
+      function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        updateAttachmentsPreview();
+
+        // Reset file input
+        const fileInput = document.getElementById("file-upload");
+        fileInput.value = "";
+      }
+
+      // Voice recording
+      let mediaRecorder;
+      let audioChunks = [];
+      let isRecording = false;
+
+      document
+        .getElementById("voice-btn")
+        .addEventListener("click", async function () {
+          if (!isRecording) {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+              });
+              mediaRecorder = new MediaRecorder(stream);
+              audioChunks = [];
+
+              mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+              };
+
+              mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+                const audioFile = new File(
+                  [audioBlob],
+                  `voice-${Date.now()}.webm`,
+                  { type: "audio/webm" },
+                );
+                selectedFiles.push(audioFile);
                 updateAttachmentsPreview();
 
-                // Reset file input
-                const fileInput = document.getElementById('file-upload');
-                fileInput.value = '';
-            }
+                // Stop all tracks
+                stream.getTracks().forEach((track) => track.stop());
+              };
 
-            // Voice recording
-            let mediaRecorder;
-            let audioChunks = [];
-            let isRecording = false;
+              mediaRecorder.start();
+              isRecording = true;
 
-            document.getElementById('voice-btn').addEventListener('click', async function() {
-                if (!isRecording) {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        mediaRecorder = new MediaRecorder(stream);
-                        audioChunks = [];
-
-                        mediaRecorder.ondataavailable = (event) => {
-                            audioChunks.push(event.data);
-                        };
-
-                        mediaRecorder.onstop = () => {
-                            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                            const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
-                            selectedFiles.push(audioFile);
-                            updateAttachmentsPreview();
-
-                            // Stop all tracks
-                            stream.getTracks().forEach(track => track.stop());
-                        };
-
-                        mediaRecorder.start();
-                        isRecording = true;
-
-                        // Update button UI
-                        this.classList.add('btn-error');
-                        this.innerHTML = `
+              // Update button UI
+              this.classList.add("btn-error");
+              this.innerHTML = `
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="12" cy="12" r="8"/>
                             </svg>
                         `;
-                        this.title = 'Stop recording';
-                    } catch (err) {
-                        console.error('Error accessing microphone:', err);
-                        alert('Unable to access microphone. Please check permissions.');
-                    }
-                } else {
-                    mediaRecorder.stop();
-                    isRecording = false;
+              this.title = "Stop recording";
+            } catch (err) {
+              console.error("Error accessing microphone:", err);
+              alert("Unable to access microphone. Please check permissions.");
+            }
+          } else {
+            mediaRecorder.stop();
+            isRecording = false;
 
-                    // Reset button UI
-                    this.classList.remove('btn-error');
-                    this.innerHTML = `
+            // Reset button UI
+            this.classList.remove("btn-error");
+            this.innerHTML = `
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                         </svg>
                     `;
-                    this.title = 'Record voice message';
-                }
-            });
+            this.title = "Record voice message";
+          }
+        });
 
-            // Auto-resize textarea
-            const messageInput = document.getElementById('message-input');
-            messageInput.addEventListener('input', function() {
-                this.style.height = 'auto';
-                this.style.height = Math.min(this.scrollHeight, 128) + 'px';
-            });
+      // Auto-resize textarea
+      const messageInput = document.getElementById("message-input");
+      messageInput.addEventListener("input", function () {
+        this.style.height = "auto";
+        this.style.height = Math.min(this.scrollHeight, 128) + "px";
+      });
 
-            // Clear input after successful form submission
-            document.getElementById('chat-form').addEventListener('htmx:afterSwap', function(event) {
-                // Clear the textarea
-                messageInput.value = '';
-                messageInput.style.height = 'auto';
+      // Clear input after successful form submission
+      document
+        .getElementById("chat-form")
+        .addEventListener("htmx:afterSwap", function (event) {
+          // Clear the textarea
+          messageInput.value = "";
+          messageInput.style.height = "auto";
 
-                // Clear selected files
-                selectedFiles = [];
-                updateAttachmentsPreview();
+          // Clear selected files
+          selectedFiles = [];
+          updateAttachmentsPreview();
 
-                // Reset file input
-                const fileInput = document.getElementById('file-upload');
-                fileInput.value = '';
-            });
-        </script>
+          // Reset file input
+          const fileInput = document.getElementById("file-upload");
+          fileInput.value = "";
+        });
+    </script>
+  </div>
+  <div class="drawer-side z-20 border-r border-base-300">
+    <label
+      for="my-drawer-2"
+      aria-label="close sidebar"
+      class="drawer-overlay"
+    ></label>
+    <div
+      class="menu p-4 w-80 min-h-full bg-base-200 text-base-content flex flex-col"
+    >
+      <!-- Sidebar content here -->
+      <a href="/chat" class="btn btn-primary w-full mb-4 gap-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="w-6 h-6"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 4.5v15m7.5-7.5h-15"
+          />
+        </svg>
+        New Chat
+      </a>
 
-    </div>
-    <div class="drawer-side z-20 border-r border-base-300">
-        <label for="my-drawer-2" aria-label="close sidebar" class="drawer-overlay"></label>
-        <div class="menu p-4 w-80 min-h-full bg-base-200 text-base-content flex flex-col">
-            <!-- Sidebar content here -->
-            <a href="/chat" class="btn btn-primary w-full mb-4 gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                    stroke="currentColor" class="w-6 h-6">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                New Chat
+      <div class="flex-grow overflow-y-auto">
+        <ul class="menu w-full p-0">
+          {% if user_chats %} {% for chat in user_chats %}
+          <li class="relative group">
+            <a
+              href="/chat/{{ chat.id }}"
+              class="{% if chat_id and chat_id==chat.id %}active{% endif %} flex justify-between items-center pr-12"
+            >
+              <span class="truncate">{{ chat.name }}</span>
             </a>
+            <button
+              class="btn btn-ghost btn-xs absolute right-2 top-2 hidden group-hover:flex text-error"
+              hx-delete="/chat/{{ chat.id }}"
+              hx-target="closest li"
+              hx-swap="outerHTML"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                class="w-4 h-4"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.49 1.478l-.56-.172a6.022 6.022 0 00-1.383-.248H2.37c-.36.058-.72.128-1.083.202a.75.75 0 01-.253-1.478 48.567 48.567 0 013.878-.512V4.479A2.25 2.25 0 017.125 2.25h9.75a2.25 2.25 0 012.125 2.228zM4.5 6.75v10.5a3 3 0 003 3h9a3 3 0 003-3V6.75a.75.75 0 00-.75-.75H5.25a.75.75 0 00-.75.75z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </button>
+          </li>
+          {% endfor %} {% endif %}
+        </ul>
+      </div>
 
-            <div class="flex-grow overflow-y-auto">
-                <ul class="menu w-full p-0">
-                    {% if user_chats %}
-                    {% for chat in user_chats %}
-                    <li class="relative group">
-                        <a href="/chat/{{ chat.id }}"
-                            class="{% if chat_id and chat_id==chat.id %}active{% endif %} flex justify-between items-center pr-12">
-                            <span class="truncate">{{ chat.name }}</span>
-                        </a>
-                        <button class="btn btn-ghost btn-xs absolute right-2 top-2 hidden group-hover:flex text-error"
-                            hx-delete="/chat/{{ chat.id }}" hx-target="closest li" hx-swap="outerHTML">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
-                                class="w-4 h-4">
-                                <path fill-rule="evenodd"
-                                    d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.49 1.478l-.56-.172a6.022 6.022 0 00-1.383-.248H2.37c-.36.058-.72.128-1.083.202a.75.75 0 01-.253-1.478 48.567 48.567 0 013.878-.512V4.479A2.25 2.25 0 017.125 2.25h9.75a2.25 2.25 0 012.125 2.228zM4.5 6.75v10.5a3 3 0 003 3h9a3 3 0 003-3V6.75a.75.75 0 00-.75-.75H5.25a.75.75 0 00-.75.75z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                    </li>
-                    {% endfor %}
-                    {% endif %}
-                </ul>
-            </div>
-
-            <div class="divider"></div>
-            <div class="text-center text-xs opacity-50">
-                Built by <a href="https://www.bitswired.com" target="_blank" class="link link-hover">Bitswired</a> 💚
-            </div>
-        </div>
+      <div class="divider"></div>
+      <div class="text-center text-xs opacity-50">
+        Built by
+        <a
+          href="https://www.bitswired.com"
+          target="_blank"
+          class="link link-hover"
+          >Bitswired</a
+        >
+        💚
+      </div>
     </div>
+  </div>
 </div>

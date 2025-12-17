@@ -141,23 +141,27 @@ struct MessageAccumulator {
 fn render_message_html(acc: &MessageAccumulator) -> String {
     let mut html = String::new();
 
-    // Render thinking section (collapsible) - always render during streaming
-    html.push_str(r#"<div id="thinking-container" class="collapse collapse-arrow bg-base-200 mb-4"#);
-    if acc.thinking.is_empty() {
-        html.push_str(r#" hidden"#);
+    // Render thinking section (collapsible) - only render if has content or during streaming
+    if !acc.thinking.is_empty() {
+        html.push_str(
+            r#"<div id="thinking-container" class="collapse collapse-arrow bg-base-200 mb-4">"#,
+        );
+        html.push_str(r#"<input type="checkbox" id="thinking-collapse" class="hidden" />"#);
+        html.push_str(r#"<div class="collapse-title text-sm font-medium flex items-center gap-2 cursor-pointer" onclick="document.getElementById('thinking-container').classList.toggle('collapse-open')">"#);
+        html.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>"#);
+        html.push_str("Thinking Process");
+        html.push_str("</div>");
+        html.push_str(
+            r#"<div class="collapse-content"><div class="text-sm opacity-75 whitespace-pre-wrap">"#,
+        );
+        html.push_str(&html_escape::encode_text(&acc.thinking));
+        html.push_str("</div></div></div>");
     }
-    html.push_str(r#">"#);
-    html.push_str(r#"<input type="checkbox" id="thinking-collapse" class="hidden" />"#);
-    html.push_str(r#"<div class="collapse-title text-sm font-medium flex items-center gap-2 cursor-pointer" onclick="document.getElementById('thinking-container').classList.toggle('collapse-open')">"#);
-    html.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>"#);
-    html.push_str("Thinking Process");
-    html.push_str("</div>");
-    html.push_str(r#"<div class="collapse-content"><div class="text-sm opacity-75 whitespace-pre-wrap">"#);
-    html.push_str(&html_escape::encode_text(&acc.thinking));
-    html.push_str("</div></div></div>");
 
     // Render reasoning section (collapsible) - always render during streaming
-    html.push_str(r#"<div id="reasoning-container" class="collapse collapse-arrow bg-base-200 mb-4"#);
+    html.push_str(
+        r#"<div id="reasoning-container" class="collapse collapse-arrow bg-base-200 mb-4"#,
+    );
     if acc.reasoning.is_empty() {
         html.push_str(r#" hidden"#);
     }
@@ -167,10 +171,12 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
     html.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>"#);
     html.push_str("Reasoning");
     html.push_str("</div>");
-    html.push_str(r#"<div class="collapse-content"><div class="text-sm opacity-75 whitespace-pre-wrap">"#);
+    html.push_str(
+        r#"<div class="collapse-content"><div class="text-sm opacity-75 whitespace-pre-wrap">"#,
+    );
     html.push_str(&html_escape::encode_text(&acc.reasoning));
     html.push_str("</div></div></div>");
-    
+
     // Render tool calls
     for tool_call in &acc.tool_calls {
         html.push_str(r#"<div class="card bg-accent/10 mb-4 border border-accent/20">"#);
@@ -182,7 +188,8 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
         html.push_str("</div>");
         html.push_str(r#"<div class="mockup-code text-xs"><pre><code>"#);
         // Pretty print JSON arguments if possible
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&tool_call.function.arguments) {
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&tool_call.function.arguments)
+        {
             if let Ok(pretty) = serde_json::to_string_pretty(&parsed) {
                 html.push_str(&html_escape::encode_text(&pretty));
             } else {
@@ -194,19 +201,19 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
         html.push_str("</code></pre></div>");
         html.push_str("</div></div>");
     }
-    
+
     // Render images
     for image_url in &acc.images {
         html.push_str(r#"<div class="mb-4"><img src=""#);
         html.push_str(&html_escape::encode_quoted_attribute(image_url));
         html.push_str(r#"" alt="Generated image" class="rounded-lg max-w-md shadow-lg" /></div>"#);
     }
-    
+
     // Render main text content
     if !acc.text.is_empty() {
         html.push_str(&markdown_to_html(&acc.text));
     }
-    
+
     // Render sources
     if !acc.sources.is_empty() {
         html.push_str(r#"<div class="divider mt-4">Sources</div>"#);
@@ -215,7 +222,10 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
             html.push_str(r#"<div class="card bg-base-200 compact">"#);
             html.push_str(r#"<div class="card-body p-3">"#);
             html.push_str(r#"<div class="flex items-start gap-2">"#);
-            html.push_str(&format!(r#"<span class="badge badge-primary badge-sm">{}</span>"#, idx + 1));
+            html.push_str(&format!(
+                r#"<span class="badge badge-primary badge-sm">{}</span>"#,
+                idx + 1
+            ));
             html.push_str(r#"<div class="flex-1">"#);
             if let Some(title) = &source.title {
                 html.push_str(r#"<h4 class="font-semibold text-sm">"#);
@@ -230,13 +240,15 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
             if let Some(url) = &source.url {
                 html.push_str(r#"<a href=""#);
                 html.push_str(&html_escape::encode_quoted_attribute(url));
-                html.push_str(r#"" target="_blank" class="link link-primary text-xs mt-1">View source →</a>"#);
+                html.push_str(
+                    r#"" target="_blank" class="link link-primary text-xs mt-1">View source →</a>"#,
+                );
             }
             html.push_str("</div></div></div></div>");
         }
         html.push_str("</div>");
     }
-    
+
     // Render usage statistics
     if let Some(usage) = &acc.usage {
         html.push_str(r#"<div class="stats stats-horizontal shadow mt-4 text-xs">"#);
@@ -251,7 +263,7 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
         html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
         html.push_str("</div>");
     }
-  
+
     html
 }
 
@@ -262,13 +274,17 @@ fn render_thinking_section(thinking: &str) -> String {
     }
 
     let mut html = String::new();
-    html.push_str(r#"<div id="thinking-container" class="collapse collapse-arrow bg-base-200 mb-4">"#);
+    html.push_str(
+        r#"<div id="thinking-container" class="collapse collapse-arrow bg-base-200 mb-4">"#,
+    );
     html.push_str(r#"<input type="checkbox" id="thinking-collapse" />"#);
     html.push_str(r#"<div class="collapse-title text-sm font-medium flex items-center gap-2 cursor-pointer">"#);
     html.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>"#);
     html.push_str("Thinking Process");
     html.push_str("</div>");
-    html.push_str(r#"<div class="collapse-content"><div class="text-sm opacity-75 whitespace-pre-wrap">"#);
+    html.push_str(
+        r#"<div class="collapse-content"><div class="text-sm opacity-75 whitespace-pre-wrap">"#,
+    );
     html.push_str(&html_escape::encode_text(thinking));
     html.push_str("</div></div></div>");
     html
@@ -281,13 +297,17 @@ fn render_reasoning_section(reasoning: &str) -> String {
     }
 
     let mut html = String::new();
-    html.push_str(r#"<div id="reasoning-container" class="collapse collapse-arrow bg-base-200 mb-4">"#);
+    html.push_str(
+        r#"<div id="reasoning-container" class="collapse collapse-arrow bg-base-200 mb-4">"#,
+    );
     html.push_str(r#"<input type="checkbox" id="reasoning-collapse" />"#);
     html.push_str(r#"<div class="collapse-title text-sm font-medium flex items-center gap-2 cursor-pointer">"#);
     html.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>"#);
     html.push_str("Reasoning");
     html.push_str("</div>");
-    html.push_str(r#"<div class="collapse-content"><div class="text-sm opacity-75 whitespace-pre-wrap">"#);
+    html.push_str(
+        r#"<div class="collapse-content"><div class="text-sm opacity-75 whitespace-pre-wrap">"#,
+    );
     html.push_str(&html_escape::encode_text(reasoning));
     html.push_str("</div></div></div>");
     html
@@ -326,12 +346,14 @@ impl IntoResponse for ChatError {
                 tracing::error!("Database error: {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal database error")
             }
-            ChatError::InvalidAPIKey => {
-                (StatusCode::UNAUTHORIZED, "Invalid API key. Please check your settings.")
-            }
-            ChatError::EmptyAPIKey => {
-                (StatusCode::BAD_REQUEST, "API key is required. Please configure it in settings.")
-            }
+            ChatError::InvalidAPIKey => (
+                StatusCode::UNAUTHORIZED,
+                "Invalid API key. Please check your settings.",
+            ),
+            ChatError::EmptyAPIKey => (
+                StatusCode::BAD_REQUEST,
+                "API key is required. Please configure it in settings.",
+            ),
             ChatError::ChatNotFound => (StatusCode::NOT_FOUND, "Chat not found"),
             ChatError::MissingUser => (StatusCode::UNAUTHORIZED, "User not authenticated"),
             ChatError::InvalidMessage => (StatusCode::BAD_REQUEST, "Message cannot be empty"),
@@ -352,7 +374,6 @@ impl IntoResponse for ChatError {
         (status, body).into_response()
     }
 }
-
 
 #[axum::debug_handler]
 pub async fn chat(
@@ -396,7 +417,10 @@ pub async fn new_chat(
     let current_user = current_user.ok_or_else(|| ChatError::MissingUser)?;
 
     // Use model from user settings, fallback to default if not set
-    let model = current_user.model.as_deref().unwrap_or("Qwen/Qwen2.5-7B-Instruct");
+    let model = current_user
+        .model
+        .as_deref()
+        .unwrap_or("Qwen/Qwen2.5-7B-Instruct");
 
     let chat_id = state
         .chat_repo
@@ -462,7 +486,9 @@ pub async fn chat_by_id(
 
                 // Parse tool calls
                 if let Some(tool_calls_json) = &pair.tool_calls {
-                    if let Ok(parsed) = serde_json::from_str::<Vec<crate::data::model::ToolCall>>(tool_calls_json) {
+                    if let Ok(parsed) =
+                        serde_json::from_str::<Vec<crate::data::model::ToolCall>>(tool_calls_json)
+                    {
                         acc.tool_calls = parsed;
                     }
                 }
@@ -476,13 +502,18 @@ pub async fn chat_by_id(
 
                 // Parse sources
                 if let Some(sources_json) = &pair.sources {
-                    if let Ok(parsed) = serde_json::from_str::<Vec<crate::data::model::Source>>(sources_json) {
+                    if let Ok(parsed) =
+                        serde_json::from_str::<Vec<crate::data::model::Source>>(sources_json)
+                    {
                         acc.sources = parsed;
                     }
                 }
 
                 // Parse usage
-                if pair.usage_prompt_tokens.is_some() || pair.usage_completion_tokens.is_some() || pair.usage_total_tokens.is_some() {
+                if pair.usage_prompt_tokens.is_some()
+                    || pair.usage_completion_tokens.is_some()
+                    || pair.usage_total_tokens.is_some()
+                {
                     acc.usage = Some(crate::data::model::UsageInfo {
                         prompt_tokens: pair.usage_prompt_tokens.unwrap_or(0),
                         completion_tokens: pair.usage_completion_tokens.unwrap_or(0),
@@ -525,9 +556,9 @@ pub struct ChatAddMessage {
 }
 
 use axum::extract::Multipart;
+use std::path::PathBuf;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use std::path::PathBuf;
 
 #[axum::debug_handler]
 pub async fn chat_add_message(
@@ -538,24 +569,31 @@ pub async fn chat_add_message(
 ) -> Result<Html<String>, ChatError> {
     let mut message = String::new();
     let mut file_attachments = Vec::new();
-    
+
     // Create uploads directory if it doesn't exist
-    tokio::fs::create_dir_all("uploads").await
-        .map_err(|e| ChatError::ServerError(format!("Failed to create uploads directory: {}", e)))?;
-    
+    tokio::fs::create_dir_all("uploads").await.map_err(|e| {
+        ChatError::ServerError(format!("Failed to create uploads directory: {}", e))
+    })?;
+
     // Process multipart form data
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| ChatError::ServerError(format!("Failed to read multipart field: {}", e)))? {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| ChatError::ServerError(format!("Failed to read multipart field: {}", e)))?
+    {
         let name = field.name().unwrap_or("").to_string();
 
         if name == "message" {
-            message = field.text().await
-                .map_err(|e| ChatError::ServerError(format!("Failed to read message text: {}", e)))?;
+            message = field.text().await.map_err(|e| {
+                ChatError::ServerError(format!("Failed to read message text: {}", e))
+            })?;
         } else if name == "files" {
             let filename = field.file_name().unwrap_or("unknown").to_string();
-            let data = field.bytes().await
+            let data = field
+                .bytes()
+                .await
                 .map_err(|e| ChatError::ServerError(format!("Failed to read file data: {}", e)))?;
-            
+
             // Generate unique filename
             let timestamp = chrono::Utc::now().timestamp();
             let path_buf = PathBuf::from(&filename);
@@ -566,25 +604,30 @@ pub async fn chat_add_message(
                 .to_string();
             let unique_filename = format!("{}-{}.{}", timestamp, uuid::Uuid::new_v4(), extension);
             let file_path = format!("uploads/{}", unique_filename);
-            
+
             // Save file
-            let mut file = File::create(&file_path).await
+            let mut file = File::create(&file_path)
+                .await
                 .map_err(|e| ChatError::ServerError(format!("Failed to create file: {}", e)))?;
-            file.write_all(&data).await
+            file.write_all(&data)
+                .await
                 .map_err(|e| ChatError::ServerError(format!("Failed to write file: {}", e)))?;
-            
+
             // Determine if it's an image
-            let is_image = filename.ends_with(".jpg") || filename.ends_with(".jpeg") 
-                || filename.ends_with(".png") || filename.ends_with(".gif") 
+            let is_image = filename.ends_with(".jpg")
+                || filename.ends_with(".jpeg")
+                || filename.ends_with(".png")
+                || filename.ends_with(".gif")
                 || filename.ends_with(".webp");
-            
+
             file_attachments.push((filename, file_path, is_image));
         }
     }
-    
+
     // Add file references to message
     if !file_attachments.is_empty() {
-        let attachments_text = file_attachments.iter()
+        let attachments_text = file_attachments
+            .iter()
             .map(|(name, path, is_image)| {
                 if *is_image {
                     format!("\n\n![{}](/{})  ", name, path)
@@ -595,7 +638,7 @@ pub async fn chat_add_message(
             .collect::<String>();
         message.push_str(&attachments_text);
     }
-    
+
     // Validate message
     if message.trim().is_empty() {
         return Err(ChatError::InvalidMessage);
@@ -608,7 +651,7 @@ pub async fn chat_add_message(
         .map_err(|e| ChatError::DatabaseError(format!("Failed to add message: {}", e)))?;
 
     let human_message_html = markdown_to_html(&message);
-    
+
     let mut context = Context::new();
     context.insert("human_message_html", &human_message_html);
     context.insert("chat_id", &chat_id);
@@ -635,7 +678,10 @@ pub async fn chat_generate(
     }
 
     // Retrieve chat messages
-    let chat_message_pairs = state.chat_repo.retrieve_chat(chat_id).await
+    let chat_message_pairs = state
+        .chat_repo
+        .retrieve_chat(chat_id)
+        .await
         .map_err(|e| ChatError::DatabaseError(format!("Failed to retrieve chat: {}", e)))?;
 
     if chat_message_pairs.is_empty() {
@@ -643,7 +689,10 @@ pub async fn chat_generate(
     }
 
     // Use model from user settings, fallback to default if not set
-    let model = user.model.clone().unwrap_or_else(|| "Qwen/Qwen2.5-7B-Instruct".to_string());
+    let model = user
+        .model
+        .clone()
+        .unwrap_or_else(|| "Qwen/Qwen2.5-7B-Instruct".to_string());
 
     // Validate API key
     match list_engines(&key).await {
@@ -662,14 +711,7 @@ pub async fn chat_generate(
     // Spawn a task that generates SSE events and sends them into the channel
     tokio::spawn(async move {
         // Call your existing function to start generating events
-        if let Err(e) = generate_sse_stream(
-            &key,
-            &model,
-            chat_message_pairs,
-            sender,
-        )
-        .await
-        {
+        if let Err(e) = generate_sse_stream(&key, &model, chat_message_pairs, sender).await {
             eprintln!("Error generating SSE stream: {:?}", e);
         }
     });
@@ -679,7 +721,7 @@ pub async fn chat_generate(
     let state_clone = Arc::clone(&state);
 
     let receiver_stream = ReceiverStream::new(receiver);
-    
+
     let initial_accumulator = MessageAccumulator {
         text: String::new(),
         thinking: String::new(),
@@ -689,7 +731,7 @@ pub async fn chat_generate(
         usage: None,
         sources: Vec::new(),
     };
-    
+
     let initial_state = (receiver_stream, initial_accumulator);
     let event_stream = stream::unfold(initial_state, move |(mut rc, mut acc)| {
         let state_clone = Arc::clone(&state_clone);
@@ -777,10 +819,18 @@ pub async fn chat_generate(
                                 .add_ai_message_with_extended_data(
                                     lat_message_id,
                                     &acc.text,
-                                    if !acc.thinking.is_empty() { Some(&acc.thinking) } else { None },
+                                    if !acc.thinking.is_empty() {
+                                        Some(&acc.thinking)
+                                    } else {
+                                        None
+                                    },
                                     tool_calls_json.as_deref(),
                                     images_json.as_deref(),
-                                    if !acc.reasoning.is_empty() { Some(&acc.reasoning) } else { None },
+                                    if !acc.reasoning.is_empty() {
+                                        Some(&acc.reasoning)
+                                    } else {
+                                        None
+                                    },
                                     acc.usage.as_ref().map(|u| u.prompt_tokens),
                                     acc.usage.as_ref().map(|u| u.completion_tokens),
                                     acc.usage.as_ref().map(|u| u.total_tokens),
@@ -818,20 +868,31 @@ pub async fn chat_generate(
                             for tool_call in &acc.tool_calls {
                                 complete_html.push_str(r#"<div class="card bg-accent/10 mb-4 border border-accent/20">"#);
                                 complete_html.push_str(r#"<div class="card-body p-4">"#);
-                                complete_html.push_str(r#"<div class="flex items-center gap-2 mb-2">"#);
+                                complete_html
+                                    .push_str(r#"<div class="flex items-center gap-2 mb-2">"#);
                                 complete_html.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>"#);
-                                complete_html.push_str(r#"<span class="font-semibold text-accent">Tool Call: </span>"#);
-                                complete_html.push_str(&html_escape::encode_text(&tool_call.function.name));
+                                complete_html.push_str(
+                                    r#"<span class="font-semibold text-accent">Tool Call: </span>"#,
+                                );
+                                complete_html
+                                    .push_str(&html_escape::encode_text(&tool_call.function.name));
                                 complete_html.push_str("</div>");
-                                complete_html.push_str(r#"<div class="mockup-code text-xs"><pre><code>"#);
-                                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&tool_call.function.arguments) {
+                                complete_html
+                                    .push_str(r#"<div class="mockup-code text-xs"><pre><code>"#);
+                                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(
+                                    &tool_call.function.arguments,
+                                ) {
                                     if let Ok(pretty) = serde_json::to_string_pretty(&parsed) {
                                         complete_html.push_str(&html_escape::encode_text(&pretty));
                                     } else {
-                                        complete_html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
+                                        complete_html.push_str(&html_escape::encode_text(
+                                            &tool_call.function.arguments,
+                                        ));
                                     }
                                 } else {
-                                    complete_html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
+                                    complete_html.push_str(&html_escape::encode_text(
+                                        &tool_call.function.arguments,
+                                    ));
                                 }
                                 complete_html.push_str("</code></pre></div>");
                                 complete_html.push_str("</div></div>");
@@ -840,33 +901,43 @@ pub async fn chat_generate(
                             // Add images
                             for image_url in &acc.images {
                                 complete_html.push_str(r#"<div class="mb-4"><img src=""#);
-                                complete_html.push_str(&html_escape::encode_quoted_attribute(image_url));
+                                complete_html
+                                    .push_str(&html_escape::encode_quoted_attribute(image_url));
                                 complete_html.push_str(r#"" alt="Generated image" class="rounded-lg max-w-md shadow-lg" /></div>"#);
                             }
 
                             // Add sources
                             if !acc.sources.is_empty() {
-                                complete_html.push_str(r#"<div class="divider mt-4">Sources</div>"#);
+                                complete_html
+                                    .push_str(r#"<div class="divider mt-4">Sources</div>"#);
                                 complete_html.push_str(r#"<div class="flex flex-col gap-2">"#);
                                 for (idx, source) in acc.sources.iter().enumerate() {
-                                    complete_html.push_str(r#"<div class="card bg-base-200 compact">"#);
+                                    complete_html
+                                        .push_str(r#"<div class="card bg-base-200 compact">"#);
                                     complete_html.push_str(r#"<div class="card-body p-3">"#);
-                                    complete_html.push_str(r#"<div class="flex items-start gap-2">"#);
-                                    complete_html.push_str(&format!(r#"<span class="badge badge-primary badge-sm">{}</span>"#, idx + 1));
+                                    complete_html
+                                        .push_str(r#"<div class="flex items-start gap-2">"#);
+                                    complete_html.push_str(&format!(
+                                        r#"<span class="badge badge-primary badge-sm">{}</span>"#,
+                                        idx + 1
+                                    ));
                                     complete_html.push_str(r#"<div class="flex-1">"#);
                                     if let Some(title) = &source.title {
-                                        complete_html.push_str(r#"<h4 class="font-semibold text-sm">"#);
+                                        complete_html
+                                            .push_str(r#"<h4 class="font-semibold text-sm">"#);
                                         complete_html.push_str(&html_escape::encode_text(title));
                                         complete_html.push_str("</h4>");
                                     }
                                     if let Some(snippet) = &source.snippet {
-                                        complete_html.push_str(r#"<p class="text-xs opacity-75 mt-1">"#);
+                                        complete_html
+                                            .push_str(r#"<p class="text-xs opacity-75 mt-1">"#);
                                         complete_html.push_str(&html_escape::encode_text(snippet));
                                         complete_html.push_str("</p>");
                                     }
                                     if let Some(url) = &source.url {
                                         complete_html.push_str(r#"<a href=""#);
-                                        complete_html.push_str(&html_escape::encode_quoted_attribute(url));
+                                        complete_html
+                                            .push_str(&html_escape::encode_quoted_attribute(url));
                                         complete_html.push_str(r#"" target="_blank" class="link link-primary text-xs mt-1">View source →</a>"#);
                                     }
                                     complete_html.push_str("</div></div></div></div>");
@@ -876,16 +947,21 @@ pub async fn chat_generate(
 
                             // Add usage statistics
                             if let Some(usage) = &acc.usage {
-                                complete_html.push_str(r#"<div class="stats stats-horizontal shadow mt-4 text-xs">"#);
+                                complete_html.push_str(
+                                    r#"<div class="stats stats-horizontal shadow mt-4 text-xs">"#,
+                                );
                                 complete_html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Prompt</div><div class="stat-value text-sm">"#);
                                 complete_html.push_str(&usage.prompt_tokens.to_string());
-                                complete_html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+                                complete_html
+                                    .push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
                                 complete_html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Completion</div><div class="stat-value text-sm">"#);
                                 complete_html.push_str(&usage.completion_tokens.to_string());
-                                complete_html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+                                complete_html
+                                    .push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
                                 complete_html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Total</div><div class="stat-value text-sm">"#);
                                 complete_html.push_str(&usage.total_tokens.to_string());
-                                complete_html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+                                complete_html
+                                    .push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
                                 complete_html.push_str("</div>");
                             }
 
@@ -894,9 +970,7 @@ pub async fn chat_generate(
                         }
                     }
                 }
-                Some(Err(e)) => {
-                    Some((Err(axum::Error::new(e)), (rc, acc)))
-                }
+                Some(Err(e)) => Some((Err(axum::Error::new(e)), (rc, acc))),
                 None => None,
             }
         }
@@ -909,7 +983,10 @@ pub async fn delete_chat(
     Path(chat_id): Path<i64>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Html<String>, ChatError> {
-    let rows_affected = state.chat_repo.delete_chat(chat_id).await
+    let rows_affected = state
+        .chat_repo
+        .delete_chat(chat_id)
+        .await
         .map_err(|e| ChatError::DatabaseError(format!("Failed to delete chat: {}", e)))?;
 
     if rows_affected == 0 {
