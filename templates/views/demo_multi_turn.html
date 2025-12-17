@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-turn Chat Demo - RustGPT</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+</head>
+<body>
+    <div class="container mx-auto p-8 max-w-4xl">
+        <h1 class="text-4xl font-bold mb-4">Multi-turn Chat Demo</h1>
+        <p class="mb-8 text-lg">This demo shows how multiple conversation turns are now properly preserved and displayed in order.</p>
+        
+        <div class="alert alert-success mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+                <h3 class="font-bold">Fixed Issues:</h3>
+                <ul class="list-disc list-inside">
+                    <li>✅ Historical messages are now preserved across multiple conversation turns</li>
+                    <li>✅ New messages are appended at the bottom, not replacing previous ones</li>
+                    <li>✅ Proper message ordering maintained</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Chat interface mockup -->
+        <div class="mockup-window bg-base-300 border">
+            <div class="bg-base-200 p-6">
+                <div id="chat-messages" class="flex flex-col gap-4 max-w-4xl mx-auto min-h-[400px]">
+                    <!-- Turn 1 -->
+                    <div class="chat chat-end">
+                        <div class="chat-image avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="User" src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+                            </div>
+                        </div>
+                        <div class="chat-header">You</div>
+                        <div class="chat-bubble">Hello! How are you?</div>
+                    </div>
+                    
+                    <div class="chat chat-start">
+                        <div class="chat-image avatar">
+                            <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
+                        </div>
+                        <div class="chat-header">Assistant</div>
+                        <div class="chat-bubble chat-bubble-primary">I am doing great! How can I help you today?</div>
+                    </div>
+                    
+                    <!-- Turn 2 -->
+                    <div class="chat chat-end">
+                        <div class="chat-image avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="User" src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+                            </div>
+                        </div>
+                        <div class="chat-header">You</div>
+                        <div class="chat-bubble">Can you tell me about Rust programming?</div>
+                    </div>
+                    
+                    <div class="chat chat-start">
+                        <div class="chat-image avatar">
+                            <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
+                        </div>
+                        <div class="chat-header">Assistant</div>
+                        <div class="chat-bubble chat-bubble-primary">
+                            <p>Rust is a systems programming language that focuses on safety, speed, and concurrency. It prevents memory errors and data races at compile time.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Turn 3 -->
+                    <div class="chat chat-end">
+                        <div class="chat-image avatar">
+                            <div class="w-10 rounded-full">
+                                <img alt="User" src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+                            </div>
+                        </div>
+                        <div class="chat-header">You</div>
+                        <div class="chat-bubble">That sounds interesting! What are some good use cases?</div>
+                    </div>
+                    
+                    <div class="chat chat-start">
+                        <div class="chat-image avatar">
+                            <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
+                        </div>
+                        <div class="chat-header">Assistant</div>
+                        <div class="chat-bubble chat-bubble-primary">
+                            <p>Rust is excellent for building operating systems, web servers, game engines, embedded systems, and command-line tools. Its performance rivals C++ while providing memory safety.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Placeholder for new messages -->
+                    <div id="new-message"></div>
+                </div>
+                
+                <!-- Input area demo -->
+                <div class="mt-6 pt-4 border-t border-base-300">
+                    <form id="demo-form">
+                        <div class="flex gap-2">
+                            <textarea class="textarea textarea-bordered flex-1" placeholder="Type your message..." rows="2"></textarea>
+                            <button type="button" class="btn btn-primary" onclick="simulateNewMessage()">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 grid md:grid-cols-2 gap-4">
+            <div class="card bg-error/10 border border-error/20">
+                <div class="card-body">
+                    <h2 class="card-title text-error">❌ Before (Bug)</h2>
+                    <ul class="list-disc list-inside text-sm">
+                        <li>hx-swap="outerHTML" replaced entire message div</li>
+                        <li>Only the latest message was visible</li>
+                        <li>Previous conversation history was lost</li>
+                        <li>Messages appeared at top instead of bottom</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="card bg-success/10 border border-success/20">
+                <div class="card-body">
+                    <h2 class="card-title text-success">✅ After (Fixed)</h2>
+                    <ul class="list-disc list-inside text-sm">
+                        <li>hx-swap="beforebegin" appends new messages</li>
+                        <li>All messages remain visible</li>
+                        <li>Complete conversation history preserved</li>
+                        <li>Messages appear in correct chronological order</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let messageCount = 3;
+        function simulateNewMessage() {
+            messageCount++;
+            const container = document.getElementById('new-message');
+            const newMessages = `
+                <div class="chat chat-end">
+                    <div class="chat-image avatar">
+                        <div class="w-10 rounded-full">
+                            <img alt="User" src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+                        </div>
+                    </div>
+                    <div class="chat-header">You</div>
+                    <div class="chat-bubble">Test message ${messageCount}</div>
+                </div>
+                
+                <div class="chat chat-start">
+                    <div class="chat-image avatar">
+                        <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
+                    </div>
+                    <div class="chat-header">Assistant</div>
+                    <div class="chat-bubble chat-bubble-primary">
+                        <p>Response to test message ${messageCount}. All previous messages are still visible above!</p>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforebegin', newMessages);
+            
+            // Scroll to bottom
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    </script>
+</body>
+</html>

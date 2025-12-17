@@ -459,8 +459,10 @@ pub async fn chat_add_message(
         .await
         .map_err(|_| ChatError::Other)?;
 
+    let human_message_html = markdown_to_html(&message);
+    
     let mut context = Context::new();
-    context.insert("human_message", &message);
+    context.insert("human_message_html", &human_message_html);
     context.insert("chat_id", &chat_id);
     let update = state
         .tera

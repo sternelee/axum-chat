@@ -41,6 +41,7 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route("/logout", get(logout))
         .route("/demo", get(demo))
         .route("/demo-file-voice", get(demo_file_voice))
+        .route("/demo-multi-turn", get(demo_multi_turn))
         .nest("/chat", chat_router)
         .nest("/settings", settings_router)
         .with_state(state.clone())
@@ -54,6 +55,12 @@ async fn demo(axum::extract::State(state): axum::extract::State<Arc<AppState>>) 
 
 async fn demo_file_voice(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
     let rendered = state.tera.render("views/demo_file_voice.html", &tera::Context::new())
+        .unwrap_or_else(|e| format!("Error rendering demo page: {}", e));
+    axum::response::Html(rendered)
+}
+
+async fn demo_multi_turn(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
+    let rendered = state.tera.render("views/demo_multi_turn.html", &tera::Context::new())
         .unwrap_or_else(|e| format!("Error rendering demo page: {}", e));
     axum::response::Html(rendered)
 }
