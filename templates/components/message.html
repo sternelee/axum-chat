@@ -31,15 +31,24 @@
         // Store event source globally for cancellation
         window.currentEventSource = eventSource;
         
+        // Cancel request on page refresh/close
+        window.addEventListener('beforeunload', function() {
+          if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+            eventSource.close();
+          }
+        });
+        
         // Disable input and change send button to cancel during AI response
         const messageInput = document.getElementById('message-input');
-        const sendButton = document.querySelector('#chat-form button[type="submit"]');
+        const sendButton = document.getElementById('send-button');
         const sendButtonIcon = sendButton?.querySelector('svg');
         const voiceButton = document.getElementById('voice-btn');
         const fileUploadLabel = document.querySelector('label[for="file-upload"]');
         
         // Store original send button content
         const originalButtonHTML = sendButton?.innerHTML;
+        
+        console.log('Send button found:', sendButton ? 'YES' : 'NO');
         
         // Change to cancel button
         if (sendButton) {

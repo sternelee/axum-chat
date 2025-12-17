@@ -64,7 +64,7 @@
                     <form id="demo-form" onsubmit="simulateSend(event)">
                         <div class="flex gap-2">
                             <textarea id="message-input" class="textarea textarea-bordered flex-1 overflow-hidden" placeholder="Type your message..." rows="2"></textarea>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" id="send-button" class="btn btn-primary">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                 </svg>
@@ -169,7 +169,7 @@
             input.style.height = 'auto';
             
             // Change send button to cancel button during AI response
-            const sendButton = document.querySelector('button[type="submit"]');
+            const sendButton = document.getElementById('send-button');
             const originalButtonHTML = sendButton ? sendButton.innerHTML : '';
             let timeoutId;
             let cancelled = false;
