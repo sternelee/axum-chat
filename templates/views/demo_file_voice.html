@@ -11,7 +11,7 @@
 <body>
     <div class="container mx-auto p-8 max-w-4xl">
         <h1 class="text-4xl font-bold mb-8">File Upload & Voice Input Demo</h1>
-        
+
         <div class="space-y-6">
             <!-- Chat interface with new features -->
             <div class="mockup-window bg-base-300 border">
@@ -27,7 +27,7 @@
                             <div class="chat-header">You</div>
                             <div class="chat-bubble">Can you help me analyze this image?</div>
                         </div>
-                        
+
                         <div class="chat chat-start">
                             <div class="chat-image avatar">
                                 <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
@@ -38,12 +38,12 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Input area with file upload and voice -->
                     <div class="flex flex-col gap-2">
                         <!-- File attachments preview -->
                         <div id="attachments-preview" class="hidden flex-wrap gap-2"></div>
-                        
+
                         <div class="flex gap-2">
                             <div class="flex-1 flex gap-2 items-end shadow-lg rounded-lg bg-base-100 p-2">
                                 <!-- File upload button -->
@@ -53,11 +53,11 @@
                                     </svg>
                                 </label>
                                 <input type="file" id="file-upload" name="files" multiple accept="image/*,.pdf,.doc,.docx,.txt" class="hidden" onchange="handleFileSelect(event)">
-                                
+
                                 <!-- Message input -->
                                 <textarea name="message" id="message-input" class="textarea textarea-ghost flex-1 resize-none min-h-[2.5rem] max-h-32 overflow-hidden"
                                     placeholder="Type your message here..." rows="1"></textarea>
-                                
+
                                 <!-- Voice record button -->
                                 <button type="button" id="voice-btn" class="btn btn-ghost btn-sm btn-circle" title="Record voice message">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -65,7 +65,7 @@
                                     </svg>
                                 </button>
                             </div>
-                            
+
                             <!-- Send button -->
                             <button type="submit" class="btn btn-primary">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,7 +76,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Feature descriptions -->
             <div class="grid md:grid-cols-2 gap-4 mt-8">
                 <div class="card bg-base-200">
@@ -96,7 +96,7 @@
                         </ul>
                     </div>
                 </div>
-                
+
                 <div class="card bg-base-200">
                     <div class="card-body">
                         <h2 class="card-title">
@@ -115,7 +115,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Try it out section -->
             <div class="alert alert-info">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
@@ -125,24 +125,24 @@
             </div>
         </div>
     </div>
-    
+
     <script>
         // File upload handling
         let selectedFiles = [];
-        
+
         function handleFileSelect(event) {
             const files = Array.from(event.target.files);
             selectedFiles = selectedFiles.concat(files);
             updateAttachmentsPreview();
         }
-        
+
         function updateAttachmentsPreview() {
             const preview = document.getElementById('attachments-preview');
             if (selectedFiles.length === 0) {
                 preview.classList.add('hidden');
                 return;
             }
-            
+
             preview.classList.remove('hidden');
             preview.innerHTML = selectedFiles.map((file, index) => {
                 const isImage = file.type.startsWith('image/');
@@ -155,45 +155,45 @@
                 `;
             }).join('');
         }
-        
+
         function removeFile(index) {
             selectedFiles.splice(index, 1);
             updateAttachmentsPreview();
-            
+
             // Reset file input
             const fileInput = document.getElementById('file-upload');
             fileInput.value = '';
         }
-        
+
         // Voice recording
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
-        
+
         document.getElementById('voice-btn').addEventListener('click', async function() {
             if (!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
-                    
+
                     mediaRecorder.ondataavailable = (event) => {
                         audioChunks.push(event.data);
                     };
-                    
+
                     mediaRecorder.onstop = () => {
                         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                         const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
                         selectedFiles.push(audioFile);
                         updateAttachmentsPreview();
-                        
+
                         // Stop all tracks
                         stream.getTracks().forEach(track => track.stop());
                     };
-                    
+
                     mediaRecorder.start();
                     isRecording = true;
-                    
+
                     // Update button UI
                     this.classList.add('btn-error');
                     this.innerHTML = `
@@ -209,7 +209,7 @@
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
-                
+
                 // Reset button UI
                 this.classList.remove('btn-error');
                 this.innerHTML = `
@@ -220,7 +220,7 @@
                 this.title = 'Record voice message';
             }
         });
-        
+
         // Auto-resize textarea
         const messageInput = document.getElementById('message-input');
         messageInput.addEventListener('input', function() {

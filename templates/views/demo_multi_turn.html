@@ -13,7 +13,7 @@
     <div class="container mx-auto p-8 max-w-4xl">
         <h1 class="text-4xl font-bold mb-4">Multi-turn Chat Demo</h1>
         <p class="mb-8 text-lg">This demo shows how multiple conversation turns are now properly preserved and displayed in order.</p>
-        
+
         <div class="alert alert-success mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -27,7 +27,7 @@
                 </ul>
             </div>
         </div>
-        
+
         <!-- Chat interface mockup -->
         <div class="mockup-window bg-base-300 border">
             <div class="bg-base-200 p-6">
@@ -42,7 +42,7 @@
                         <div class="chat-header">You</div>
                         <div class="chat-bubble">Hello! How are you?</div>
                     </div>
-                    
+
                     <div class="chat chat-start">
                         <div class="chat-image avatar">
                             <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
@@ -50,7 +50,7 @@
                         <div class="chat-header">Assistant</div>
                         <div class="chat-bubble chat-bubble-primary">I am doing great! How can I help you today?</div>
                     </div>
-                    
+
                     <!-- Turn 2 -->
                     <div class="chat chat-end">
                         <div class="chat-image avatar">
@@ -61,7 +61,7 @@
                         <div class="chat-header">You</div>
                         <div class="chat-bubble">Can you tell me about Rust programming?</div>
                     </div>
-                    
+
                     <div class="chat chat-start">
                         <div class="chat-image avatar">
                             <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
@@ -71,7 +71,7 @@
                             <p>Rust is a systems programming language that focuses on safety, speed, and concurrency. It prevents memory errors and data races at compile time.</p>
                         </div>
                     </div>
-                    
+
                     <!-- Turn 3 -->
                     <div class="chat chat-end">
                         <div class="chat-image avatar">
@@ -82,7 +82,7 @@
                         <div class="chat-header">You</div>
                         <div class="chat-bubble">That sounds interesting! What are some good use cases?</div>
                     </div>
-                    
+
                     <div class="chat chat-start">
                         <div class="chat-image avatar">
                             <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
@@ -92,11 +92,11 @@
                             <p>Rust is excellent for building operating systems, web servers, game engines, embedded systems, and command-line tools. Its performance rivals C++ while providing memory safety.</p>
                         </div>
                     </div>
-                    
+
                     <!-- Placeholder for new messages -->
                     <div id="new-message"></div>
                 </div>
-                
+
                 <!-- Input area demo -->
                 <div class="mt-6 pt-4 border-t border-base-300">
                     <form id="demo-form">
@@ -112,7 +112,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="mt-8 grid md:grid-cols-2 gap-4">
             <div class="card bg-error/10 border border-error/20">
                 <div class="card-body">
@@ -125,7 +125,7 @@
                     </ul>
                 </div>
             </div>
-            
+
             <div class="card bg-success/10 border border-success/20">
                 <div class="card-body">
                     <h2 class="card-title text-success">✅ After (Fixed)</h2>
@@ -139,7 +139,7 @@
             </div>
         </div>
     </div>
-    
+
     <script>
         let messageCount = 3;
         function simulateNewMessage() {
@@ -155,7 +155,7 @@
                     <div class="chat-header">You</div>
                     <div class="chat-bubble">Test message ${messageCount}</div>
                 </div>
-                
+
                 <div class="chat chat-start">
                     <div class="chat-image avatar">
                         <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
@@ -167,7 +167,7 @@
                 </div>
             `;
             container.insertAdjacentHTML('beforebegin', newMessages);
-            
+
             // Scroll to bottom
             const chatMessages = document.getElementById('chat-messages');
             chatMessages.scrollTop = chatMessages.scrollHeight;

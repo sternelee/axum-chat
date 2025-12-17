@@ -70,7 +70,7 @@
                     <div class="flex flex-col gap-2">
                         <!-- File attachments preview -->
                         <div id="attachments-preview" class="hidden flex-wrap gap-2"></div>
-                        
+
                         <div class="flex gap-2">
                             <div class="flex-1 flex gap-2 items-end shadow-lg rounded-lg bg-base-100 p-2">
                                 <!-- File upload button -->
@@ -80,11 +80,11 @@
                                     </svg>
                                 </label>
                                 <input type="file" id="file-upload" name="files" multiple accept="image/*,.pdf,.doc,.docx,.txt" class="hidden" onchange="handleFileSelect(event)">
-                                
+
                                 <!-- Message input -->
                                 <textarea name="message" id="message-input" class="textarea textarea-ghost flex-1 resize-none min-h-[2.5rem] max-h-32 overflow-hidden"
                                     placeholder="Type your message here..." rows="1"></textarea>
-                                
+
                                 <!-- Voice record button -->
                                 <button type="button" id="voice-btn" class="btn btn-ghost btn-sm btn-circle" title="Record voice message">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -92,7 +92,7 @@
                                     </svg>
                                 </button>
                             </div>
-                            
+
                             <!-- Send button -->
                             <button type="submit" class="btn btn-primary" hx-post="/chat" hx-include="[name='message']">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -108,7 +108,7 @@
                     <div class="flex flex-col gap-2">
                         <!-- File attachments preview -->
                         <div id="attachments-preview" class="hidden flex-wrap gap-2"></div>
-                        
+
                         <div class="flex gap-2">
                             <div class="flex-1 flex gap-2 items-end shadow-lg rounded-lg bg-base-100 p-2">
                                 <!-- File upload button -->
@@ -118,11 +118,11 @@
                                     </svg>
                                 </label>
                                 <input type="file" id="file-upload" name="files" multiple accept="image/*,.pdf,.doc,.docx,.txt" class="hidden" onchange="handleFileSelect(event)">
-                                
+
                                 <!-- Message input -->
                                 <textarea name="message" id="message-input" class="textarea textarea-ghost flex-1 resize-none min-h-[2.5rem] max-h-32 overflow-hidden"
                                     placeholder="Type your message here..." rows="1"></textarea>
-                                
+
                                 <!-- Voice record button -->
                                 <button type="button" id="voice-btn" class="btn btn-ghost btn-sm btn-circle" title="Record voice message">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -130,7 +130,7 @@
                                     </svg>
                                 </button>
                             </div>
-                            
+
                             <!-- Send button -->
                             <button type="submit" id="send-button" class="btn btn-primary">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -143,24 +143,24 @@
                 {% endif %}
             </div>
         </div>
-        
+
         <script>
             // File upload handling
             let selectedFiles = [];
-            
+
             function handleFileSelect(event) {
                 const files = Array.from(event.target.files);
                 selectedFiles = selectedFiles.concat(files);
                 updateAttachmentsPreview();
             }
-            
+
             function updateAttachmentsPreview() {
                 const preview = document.getElementById('attachments-preview');
                 if (selectedFiles.length === 0) {
                     preview.classList.add('hidden');
                     return;
                 }
-                
+
                 preview.classList.remove('hidden');
                 preview.innerHTML = selectedFiles.map((file, index) => {
                     const isImage = file.type.startsWith('image/');
@@ -173,45 +173,45 @@
                     `;
                 }).join('');
             }
-            
+
             function removeFile(index) {
                 selectedFiles.splice(index, 1);
                 updateAttachmentsPreview();
-                
+
                 // Reset file input
                 const fileInput = document.getElementById('file-upload');
                 fileInput.value = '';
             }
-            
+
             // Voice recording
             let mediaRecorder;
             let audioChunks = [];
             let isRecording = false;
-            
+
             document.getElementById('voice-btn').addEventListener('click', async function() {
                 if (!isRecording) {
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                         mediaRecorder = new MediaRecorder(stream);
                         audioChunks = [];
-                        
+
                         mediaRecorder.ondataavailable = (event) => {
                             audioChunks.push(event.data);
                         };
-                        
+
                         mediaRecorder.onstop = () => {
                             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                             const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
                             selectedFiles.push(audioFile);
                             updateAttachmentsPreview();
-                            
+
                             // Stop all tracks
                             stream.getTracks().forEach(track => track.stop());
                         };
-                        
+
                         mediaRecorder.start();
                         isRecording = true;
-                        
+
                         // Update button UI
                         this.classList.add('btn-error');
                         this.innerHTML = `
@@ -227,7 +227,7 @@
                 } else {
                     mediaRecorder.stop();
                     isRecording = false;
-                    
+
                     // Reset button UI
                     this.classList.remove('btn-error');
                     this.innerHTML = `
@@ -238,24 +238,24 @@
                     this.title = 'Record voice message';
                 }
             });
-            
+
             // Auto-resize textarea
             const messageInput = document.getElementById('message-input');
             messageInput.addEventListener('input', function() {
                 this.style.height = 'auto';
                 this.style.height = Math.min(this.scrollHeight, 128) + 'px';
             });
-            
+
             // Clear input after successful form submission
             document.getElementById('chat-form').addEventListener('htmx:afterSwap', function(event) {
                 // Clear the textarea
                 messageInput.value = '';
                 messageInput.style.height = 'auto';
-                
+
                 // Clear selected files
                 selectedFiles = [];
                 updateAttachmentsPreview();
-                
+
                 // Reset file input
                 const fileInput = document.getElementById('file-upload');
                 fileInput.value = '';

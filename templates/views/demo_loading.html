@@ -12,7 +12,7 @@
     <div class="container mx-auto p-8 max-w-4xl">
         <h1 class="text-4xl font-bold mb-4">Loading Indicator & Clear Input Demo</h1>
         <p class="mb-8 text-lg">This demo shows the new loading indicator while AI is responding and automatic input clearing after sending.</p>
-        
+
         <div class="alert alert-success mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -29,7 +29,7 @@
                 </ul>
             </div>
         </div>
-        
+
         <!-- Chat interface mockup -->
         <div class="mockup-window bg-base-300 border">
             <div class="bg-base-200 p-6">
@@ -44,7 +44,7 @@
                         <div class="chat-header">You</div>
                         <div class="chat-bubble">What's the weather like today?</div>
                     </div>
-                    
+
                     <!-- AI Response with loading indicator -->
                     <div class="chat chat-start">
                         <div class="chat-image avatar">
@@ -58,7 +58,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Input area demo -->
                 <div class="mt-6 pt-4 border-t border-base-300">
                     <form id="demo-form" onsubmit="simulateSend(event)">
@@ -74,7 +74,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="mt-8 grid md:grid-cols-2 gap-4">
             <div class="card bg-base-200">
                 <div class="card-body">
@@ -92,7 +92,7 @@
                     </ul>
                 </div>
             </div>
-            
+
             <div class="card bg-base-200">
                 <div class="card-body">
                     <h2 class="card-title">
@@ -112,7 +112,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="alert alert-info mt-6">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -120,19 +120,19 @@
             <span><strong>Try it:</strong> Type a message and click send. The input clears, and the send button becomes a red Cancel button. Try clicking it to cancel the response!</span>
         </div>
     </div>
-    
+
     <script>
         let messageCount = 0;
-        
+
         function simulateSend(event) {
             event.preventDefault();
             messageCount++;
-            
+
             const input = document.getElementById('message-input');
             const messageText = input.value.trim();
-            
+
             if (!messageText) return;
-            
+
             // Add user message
             const chatMessages = document.getElementById('chat-messages');
             const userMessage = `
@@ -146,7 +146,7 @@
                     <div class="chat-bubble">${escapeHtml(messageText)}</div>
                 </div>
             `;
-            
+
             // Add AI response with loading indicator
             const aiMessage = `
                 <div class="chat chat-start">
@@ -161,19 +161,19 @@
                     </div>
                 </div>
             `;
-            
+
             chatMessages.innerHTML += userMessage + aiMessage;
-            
+
             // Clear input (demonstrating the feature)
             input.value = '';
             input.style.height = 'auto';
-            
+
             // Change send button to cancel button during AI response
             const sendButton = document.getElementById('send-button');
             const originalButtonHTML = sendButton ? sendButton.innerHTML : '';
             let timeoutId;
             let cancelled = false;
-            
+
             input.disabled = true;
             if (sendButton) {
                 sendButton.type = 'button';
@@ -185,7 +185,7 @@
                     </svg>
                 `;
                 sendButton.title = 'Cancel';
-                
+
                 // Add cancel handler
                 sendButton.onclick = function(e) {
                     e.preventDefault();
@@ -205,7 +205,7 @@
                     restoreButton();
                 };
             }
-            
+
             function restoreButton() {
                 if (sendButton) {
                     sendButton.type = 'submit';
@@ -217,7 +217,7 @@
                 }
                 input.disabled = false;
             }
-            
+
             // Simulate AI response after 2 seconds
             timeoutId = setTimeout(() => {
                 if (!cancelled) {
@@ -228,11 +228,11 @@
                     restoreButton();
                 }
             }, 2000);
-            
+
             // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-        
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;

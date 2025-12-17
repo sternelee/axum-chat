@@ -3,8 +3,8 @@ use reqwest::header::{HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest_eventsource::{Event as ReqwestEvent, EventSource as ReqwestEventSource};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::sync::mpsc;
 use tokio::select;
+use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 
 use crate::data::model::ChatMessagePair;
@@ -130,7 +130,7 @@ pub async fn generate_sse_stream(
             sender_closed = true;
             break;
         }
-        
+
         match event {
             Ok(ReqwestEvent::Open) => println!("Connection Open!"),
             Ok(ReqwestEvent::Message(message)) => {
@@ -150,7 +150,7 @@ pub async fn generate_sse_stream(
                 } else {
                     let m: Value = serde_json::from_str(&message.data).unwrap();
                     let delta = &m["choices"][0]["delta"];
-                    
+
                     // Handle thinking (for models like o1)
                     if let Some(thinking) = delta["thinking"].as_str() {
                         if sender
@@ -163,7 +163,7 @@ pub async fn generate_sse_stream(
                             break;
                         }
                     }
-                    
+
                     // Handle reasoning content
                     if let Some(reasoning) = delta["reasoning_content"].as_str() {
                         if sender
@@ -176,24 +176,30 @@ pub async fn generate_sse_stream(
                             break;
                         }
                     }
-                    
+
                     // Handle tool calls
                     if let Some(tool_calls) = delta["tool_calls"].as_array() {
                         for tool_call_value in tool_calls {
-                            if let Ok(tool_call) = serde_json::from_value::<crate::data::model::ToolCall>(tool_call_value.clone()) {
+                            if let Ok(tool_call) =
+                                serde_json::from_value::<crate::data::model::ToolCall>(
+                                    tool_call_value.clone(),
+                                )
+                            {
                                 if sender
                                     .send(Ok(GenerationEvent::ToolCall(tool_call)))
                                     .await
                                     .is_err()
                                 {
-                                    println!("Client disconnected during tool call, closing stream...");
+                                    println!(
+                                        "Client disconnected during tool call, closing stream..."
+                                    );
                                     stream.close();
                                     break;
                                 }
                             }
                         }
                     }
-                    
+
                     // Handle regular text content
                     if let Some(text) = delta["content"].as_str() {
                         if sender
@@ -206,7 +212,7 @@ pub async fn generate_sse_stream(
                             break;
                         }
                     }
-                    
+
                     // Handle usage information (usually in final message)
                     if let Some(usage_obj) = m["usage"].as_object() {
                         if let (Some(prompt), Some(completion), Some(total)) = (
@@ -241,7 +247,7 @@ pub async fn generate_sse_stream(
             }
         }
     }
-    
+
     println!("SSE stream generation completed or cancelled.");
 
     Ok(())
