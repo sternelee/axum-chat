@@ -43,9 +43,15 @@ struct Message {
     content: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GenerationEvent {
     Text(String),
+    Thinking(String),
+    ToolCall(crate::data::model::ToolCall),
+    Image(String),
+    Reasoning(String),
+    Usage(crate::data::model::UsageInfo),
+    Sources(Vec<crate::data::model::Source>),
     End(String),
 }
 
@@ -121,8 +127,6 @@ pub async fn generate_sse_stream(
                     println!("Stream completed.");
                     stream.close();
                     if sender
-                        // .send(Ok(Event::default()
-                        //     .data(r#"<div id="sse-listener" hx-swap-oob="true"></div>"#)))
                         .send(Ok(GenerationEvent::End(
                             r#"<div id="sse-listener" hx-swap-oob="true"></div>"#.to_string(),
                         )))
@@ -134,19 +138,75 @@ pub async fn generate_sse_stream(
                     break;
                 } else {
                     let m: Value = serde_json::from_str(&message.data).unwrap();
-                    if let Some(text) = m["choices"][0]["delta"]["content"].as_str() {
-                        // let text = text.to_string().replace(' ', "&nbsp;");
-                        // // print debug text
-                        // println!("text: {:?}", text);
-                        // println!("text: {}", text);
-
-                        // if sender.send(Ok(Event::default().data(text))).await.is_err() {
+                    let delta = &m["choices"][0]["delta"];
+                    
+                    // Handle thinking (for models like o1)
+                    if let Some(thinking) = delta["thinking"].as_str() {
+                        if sender
+                            .send(Ok(GenerationEvent::Thinking(thinking.to_string())))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    
+                    // Handle reasoning content
+                    if let Some(reasoning) = delta["reasoning_content"].as_str() {
+                        if sender
+                            .send(Ok(GenerationEvent::Reasoning(reasoning.to_string())))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    
+                    // Handle tool calls
+                    if let Some(tool_calls) = delta["tool_calls"].as_array() {
+                        for tool_call_value in tool_calls {
+                            if let Ok(tool_call) = serde_json::from_value::<crate::data::model::ToolCall>(tool_call_value.clone()) {
+                                if sender
+                                    .send(Ok(GenerationEvent::ToolCall(tool_call)))
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Handle regular text content
+                    if let Some(text) = delta["content"].as_str() {
                         if sender
                             .send(Ok(GenerationEvent::Text(text.to_string())))
                             .await
                             .is_err()
                         {
-                            break; // Receiver has dropped, stop sending.
+                            break;
+                        }
+                    }
+                    
+                    // Handle usage information (usually in final message)
+                    if let Some(usage_obj) = m["usage"].as_object() {
+                        if let (Some(prompt), Some(completion), Some(total)) = (
+                            usage_obj.get("prompt_tokens").and_then(|v| v.as_i64()),
+                            usage_obj.get("completion_tokens").and_then(|v| v.as_i64()),
+                            usage_obj.get("total_tokens").and_then(|v| v.as_i64()),
+                        ) {
+                            let usage = crate::data::model::UsageInfo {
+                                prompt_tokens: prompt,
+                                completion_tokens: completion,
+                                total_tokens: total,
+                            };
+                            if sender
+                                .send(Ok(GenerationEvent::Usage(usage)))
+                                .await
+                                .is_err()
+                            {
+                                break;
+                            }
                         }
                     }
                 }
