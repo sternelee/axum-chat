@@ -4,6 +4,7 @@ use reqwest_eventsource::{Event as ReqwestEvent, EventSource as ReqwestEventSour
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
+use tokio::select;
 use tokio_stream::StreamExt;
 
 use crate::data::model::ChatMessagePair;
@@ -61,6 +62,8 @@ pub async fn generate_sse_stream(
     messages: Vec<ChatMessagePair>,
     sender: mpsc::Sender<Result<GenerationEvent, Error>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // Monitor if the sender channel is closed (client disconnected)
+    let mut sender_closed = false;
     // Your OpenAI API key
 
     // The API endpoint for chat completions
@@ -120,6 +123,14 @@ pub async fn generate_sse_stream(
 
     // Handle streaming events
     while let Some(event) = stream.next().await {
+        // Check if sender is closed (client disconnected)
+        if sender.is_closed() && !sender_closed {
+            println!("Client disconnected, closing reqwest stream...");
+            stream.close();
+            sender_closed = true;
+            break;
+        }
+        
         match event {
             Ok(ReqwestEvent::Open) => println!("Connection Open!"),
             Ok(ReqwestEvent::Message(message)) => {
@@ -147,6 +158,8 @@ pub async fn generate_sse_stream(
                             .await
                             .is_err()
                         {
+                            println!("Client disconnected during thinking, closing stream...");
+                            stream.close();
                             break;
                         }
                     }
@@ -158,6 +171,8 @@ pub async fn generate_sse_stream(
                             .await
                             .is_err()
                         {
+                            println!("Client disconnected during reasoning, closing stream...");
+                            stream.close();
                             break;
                         }
                     }
@@ -171,6 +186,8 @@ pub async fn generate_sse_stream(
                                     .await
                                     .is_err()
                                 {
+                                    println!("Client disconnected during tool call, closing stream...");
+                                    stream.close();
                                     break;
                                 }
                             }
@@ -184,6 +201,8 @@ pub async fn generate_sse_stream(
                             .await
                             .is_err()
                         {
+                            println!("Client disconnected during text, closing stream...");
+                            stream.close();
                             break;
                         }
                     }
@@ -205,6 +224,8 @@ pub async fn generate_sse_stream(
                                 .await
                                 .is_err()
                             {
+                                println!("Client disconnected during usage, closing stream...");
+                                stream.close();
                                 break;
                             }
                         }
@@ -220,6 +241,8 @@ pub async fn generate_sse_stream(
             }
         }
     }
+    
+    println!("SSE stream generation completed or cancelled.");
 
     Ok(())
 }
