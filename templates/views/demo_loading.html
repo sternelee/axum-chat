@@ -194,7 +194,13 @@
                     clearTimeout(timeoutId);
                     const responseDiv = document.getElementById(`response-${messageCount}`);
                     if (responseDiv) {
-                        responseDiv.innerHTML = '<span class="text-warning">Request cancelled by user</span>';
+                        // Check if there's content already (not just loading indicator)
+                        const hasContent = !responseDiv.querySelector('.loading');
+                        if (hasContent) {
+                            responseDiv.innerHTML += '<div class="mt-2 text-warning italic">Request cancelled by user</div>';
+                        } else {
+                            responseDiv.innerHTML = '<span class="text-warning">Request cancelled by user</span>';
+                        }
                     }
                     restoreButton();
                 };

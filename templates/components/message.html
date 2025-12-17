@@ -58,7 +58,12 @@
             e.preventDefault();
             e.stopPropagation();
             eventSource.close();
-            messageContainer.innerHTML = '<span class="text-warning">Request cancelled by user</span>';
+            // Append cancellation message instead of replacing content
+            if (hasContent) {
+              messageContainer.innerHTML += '<div class="mt-2 text-warning italic">Request cancelled by user</div>';
+            } else {
+              messageContainer.innerHTML = '<span class="text-warning">Request cancelled by user</span>';
+            }
             restoreButton();
           };
         }
