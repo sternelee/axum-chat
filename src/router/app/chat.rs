@@ -785,8 +785,107 @@ pub async fn chat_generate(
                                 .await
                                 .unwrap();
 
-                            let html = render_message_html(&acc);
-                            let close_event = Event::default().data(html).event("close");
+                            // Send final content update without the collapse sections
+                            let final_text = if !acc.text.is_empty() {
+                                markdown_to_html(&acc.text)
+                            } else {
+                                String::new()
+                            };
+
+                            // Build the complete message HTML
+                            let mut complete_html = String::new();
+
+                            // Add thinking section if exists
+                            if !acc.thinking.is_empty() {
+                                complete_html.push_str(&render_thinking_section(&acc.thinking));
+                            }
+
+                            // Add reasoning section if exists
+                            if !acc.reasoning.is_empty() {
+                                complete_html.push_str(&render_reasoning_section(&acc.reasoning));
+                            }
+
+                            // Add main content
+                            if !acc.text.is_empty() {
+                                complete_html.push_str(&final_text);
+                            }
+
+                            // Add tool calls
+                            for tool_call in &acc.tool_calls {
+                                complete_html.push_str(r#"<div class="card bg-accent/10 mb-4 border border-accent/20">"#);
+                                complete_html.push_str(r#"<div class="card-body p-4">"#);
+                                complete_html.push_str(r#"<div class="flex items-center gap-2 mb-2">"#);
+                                complete_html.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>"#);
+                                complete_html.push_str(r#"<span class="font-semibold text-accent">Tool Call: </span>"#);
+                                complete_html.push_str(&html_escape::encode_text(&tool_call.function.name));
+                                complete_html.push_str("</div>");
+                                complete_html.push_str(r#"<div class="mockup-code text-xs"><pre><code>"#);
+                                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&tool_call.function.arguments) {
+                                    if let Ok(pretty) = serde_json::to_string_pretty(&parsed) {
+                                        complete_html.push_str(&html_escape::encode_text(&pretty));
+                                    } else {
+                                        complete_html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
+                                    }
+                                } else {
+                                    complete_html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
+                                }
+                                complete_html.push_str("</code></pre></div>");
+                                complete_html.push_str("</div></div>");
+                            }
+
+                            // Add images
+                            for image_url in &acc.images {
+                                complete_html.push_str(r#"<div class="mb-4"><img src=""#);
+                                complete_html.push_str(&html_escape::encode_quoted_attribute(image_url));
+                                complete_html.push_str(r#"" alt="Generated image" class="rounded-lg max-w-md shadow-lg" /></div>"#);
+                            }
+
+                            // Add sources
+                            if !acc.sources.is_empty() {
+                                complete_html.push_str(r#"<div class="divider mt-4">Sources</div>"#);
+                                complete_html.push_str(r#"<div class="flex flex-col gap-2">"#);
+                                for (idx, source) in acc.sources.iter().enumerate() {
+                                    complete_html.push_str(r#"<div class="card bg-base-200 compact">"#);
+                                    complete_html.push_str(r#"<div class="card-body p-3">"#);
+                                    complete_html.push_str(r#"<div class="flex items-start gap-2">"#);
+                                    complete_html.push_str(&format!(r#"<span class="badge badge-primary badge-sm">{}</span>"#, idx + 1));
+                                    complete_html.push_str(r#"<div class="flex-1">"#);
+                                    if let Some(title) = &source.title {
+                                        complete_html.push_str(r#"<h4 class="font-semibold text-sm">"#);
+                                        complete_html.push_str(&html_escape::encode_text(title));
+                                        complete_html.push_str("</h4>");
+                                    }
+                                    if let Some(snippet) = &source.snippet {
+                                        complete_html.push_str(r#"<p class="text-xs opacity-75 mt-1">"#);
+                                        complete_html.push_str(&html_escape::encode_text(snippet));
+                                        complete_html.push_str("</p>");
+                                    }
+                                    if let Some(url) = &source.url {
+                                        complete_html.push_str(r#"<a href=""#);
+                                        complete_html.push_str(&html_escape::encode_quoted_attribute(url));
+                                        complete_html.push_str(r#"" target="_blank" class="link link-primary text-xs mt-1">View source →</a>"#);
+                                    }
+                                    complete_html.push_str("</div></div></div></div>");
+                                }
+                                complete_html.push_str("</div>");
+                            }
+
+                            // Add usage statistics
+                            if let Some(usage) = &acc.usage {
+                                complete_html.push_str(r#"<div class="stats stats-horizontal shadow mt-4 text-xs">"#);
+                                complete_html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Prompt</div><div class="stat-value text-sm">"#);
+                                complete_html.push_str(&usage.prompt_tokens.to_string());
+                                complete_html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+                                complete_html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Completion</div><div class="stat-value text-sm">"#);
+                                complete_html.push_str(&usage.completion_tokens.to_string());
+                                complete_html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+                                complete_html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Total</div><div class="stat-value text-sm">"#);
+                                complete_html.push_str(&usage.total_tokens.to_string());
+                                complete_html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+                                complete_html.push_str("</div>");
+                            }
+
+                            let close_event = Event::default().data(complete_html).event("close");
                             Some((Ok(close_event), (rc, acc)))
                         }
                     }
