@@ -662,13 +662,23 @@ pub async fn chat_generate(
                         }
                         GenerationEvent::Thinking(thinking) => {
                             acc.thinking.push_str(&thinking);
-                            let html = render_message_html(&acc);
-                            Some((Ok(Event::default().data(html)), (rc, acc)))
+                            // Send thinking update as JSON
+                            let thinking_html = render_thinking_section(&acc.thinking);
+                            let json_data = serde_json::json!({
+                                "type": "thinking_update",
+                                "html": thinking_html
+                            });
+                            Some((Ok(Event::default().data(json_data.to_string())), (rc, acc)))
                         }
                         GenerationEvent::Reasoning(reasoning) => {
                             acc.reasoning.push_str(&reasoning);
-                            let html = render_message_html(&acc);
-                            Some((Ok(Event::default().data(html)), (rc, acc)))
+                            // Send reasoning update as JSON
+                            let reasoning_html = render_reasoning_section(&acc.reasoning);
+                            let json_data = serde_json::json!({
+                                "type": "reasoning_update",
+                                "html": reasoning_html
+                            });
+                            Some((Ok(Event::default().data(json_data.to_string())), (rc, acc)))
                         }
                         GenerationEvent::ToolCall(tool_call) => {
                             acc.tool_calls.push(tool_call);

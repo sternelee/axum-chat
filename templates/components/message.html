@@ -100,31 +100,28 @@
           if (event.data) {
             hasContent = true;
 
-            // Store current collapse states
-            const collapseStates = {};
-            messageContainer.querySelectorAll('.collapse input[type="checkbox"]').forEach(checkbox => {
-              if (checkbox.checked) collapseStates[checkbox.id] = true;
-            });
+            try {
+              // Parse event data to check if it's a special update
+              const data = JSON.parse(event.data);
 
-            // Create a temporary div to parse the new content
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = event.data;
-
-            // Check if we have collapse elements in the new content
-            const hasCollapses = tempDiv.querySelector('.collapse');
-
-            if (hasCollapses) {
-              // Replace the entire content but preserve collapse functionality
-              messageContainer.innerHTML = event.data;
-
-              // Manually restore collapse states since they might be reset
-              messageContainer.querySelectorAll('.collapse input[type="checkbox"]').forEach(checkbox => {
-                if (collapseStates[checkbox.id]) {
-                  checkbox.checked = true;
+              if (data.type === 'thinking_update') {
+                // Update thinking section using innerHTML
+                const thinkingContainer = document.getElementById('thinking-container');
+                if (thinkingContainer) {
+                  thinkingContainer.outerHTML = data.html;
                 }
-              });
-            } else {
-              // No collapses in new content, just update normally
+              } else if (data.type === 'reasoning_update') {
+                // Update reasoning section using innerHTML
+                const reasoningContainer = document.getElementById('reasoning-container');
+                if (reasoningContainer) {
+                  reasoningContainer.outerHTML = data.html;
+                }
+              } else {
+                // Regular content update
+                messageContainer.innerHTML = event.data;
+              }
+            } catch (e) {
+              // Not JSON, treat as regular HTML
               messageContainer.innerHTML = event.data;
             }
 

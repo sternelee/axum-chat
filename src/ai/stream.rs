@@ -48,9 +48,11 @@ struct Message {
 pub enum GenerationEvent {
     Text(String),
     Thinking(String),
+    ThinkingUpdate(String),
     ToolCall(crate::data::model::ToolCall),
     Image(String),
     Reasoning(String),
+    ReasoningUpdate(String),
     Usage(crate::data::model::UsageInfo),
     Sources(Vec<crate::data::model::Source>),
     End(String),
