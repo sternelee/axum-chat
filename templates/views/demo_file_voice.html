@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload & Voice Input Demo - RustGPT</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body>
+    <div class="container mx-auto p-8 max-w-4xl">
+        <h1 class="text-4xl font-bold mb-8">File Upload & Voice Input Demo</h1>
+        
+        <div class="space-y-6">
+            <!-- Chat interface with new features -->
+            <div class="mockup-window bg-base-300 border">
+                <div class="bg-base-200 p-6 min-h-[500px] flex flex-col">
+                    <div class="flex-1 overflow-y-auto mb-4">
+                        <!-- Sample messages -->
+                        <div class="chat chat-end mb-4">
+                            <div class="chat-image avatar">
+                                <div class="w-10 rounded-full">
+                                    <img alt="User" src="https://daisyui.com/images/stock/photo-1534528741775-53994a69daeb.jpg" />
+                                </div>
+                            </div>
+                            <div class="chat-header">You</div>
+                            <div class="chat-bubble">Can you help me analyze this image?</div>
+                        </div>
+                        
+                        <div class="chat chat-start">
+                            <div class="chat-image avatar">
+                                <div class="w-10 rounded-full bg-neutral text-neutral-content grid place-content-center">AI</div>
+                            </div>
+                            <div class="chat-header">Assistant</div>
+                            <div class="chat-bubble prose max-w-none">
+                                <p>Of course! Please upload the image you'd like me to analyze.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Input area with file upload and voice -->
+                    <div class="flex flex-col gap-2">
+                        <!-- File attachments preview -->
+                        <div id="attachments-preview" class="hidden flex-wrap gap-2"></div>
+                        
+                        <div class="flex gap-2">
+                            <div class="flex-1 flex gap-2 items-end shadow-lg rounded-lg bg-base-100 p-2">
+                                <!-- File upload button -->
+                                <label for="file-upload" class="btn btn-ghost btn-sm btn-circle" title="Attach file or image">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                    </svg>
+                                </label>
+                                <input type="file" id="file-upload" name="files" multiple accept="image/*,.pdf,.doc,.docx,.txt" class="hidden" onchange="handleFileSelect(event)">
+                                
+                                <!-- Message input -->
+                                <textarea name="message" id="message-input" class="textarea textarea-ghost flex-1 resize-none min-h-[2.5rem] max-h-32"
+                                    placeholder="Type your message here..." rows="1"></textarea>
+                                
+                                <!-- Voice record button -->
+                                <button type="button" id="voice-btn" class="btn btn-ghost btn-sm btn-circle" title="Record voice message">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <!-- Send button -->
+                            <button type="submit" class="btn btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Feature descriptions -->
+            <div class="grid md:grid-cols-2 gap-4 mt-8">
+                <div class="card bg-base-200">
+                    <div class="card-body">
+                        <h2 class="card-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                            </svg>
+                            File & Image Upload
+                        </h2>
+                        <p>Attach images, documents, and other files to your messages. Supports:</p>
+                        <ul class="list-disc list-inside">
+                            <li>Images (JPG, PNG, GIF, WebP)</li>
+                            <li>Documents (PDF, DOC, DOCX, TXT)</li>
+                            <li>Multiple file selection</li>
+                            <li>File preview badges</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card bg-base-200">
+                    <div class="card-body">
+                        <h2 class="card-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                            Voice Input
+                        </h2>
+                        <p>Record voice messages directly in the chat. Features:</p>
+                        <ul class="list-disc list-inside">
+                            <li>Browser-based recording</li>
+                            <li>No additional software needed</li>
+                            <li>Visual recording indicator</li>
+                            <li>Automatic file attachment</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Try it out section -->
+            <div class="alert alert-info">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span><strong>Try it out:</strong> Click the paperclip icon to upload files or the microphone icon to record voice messages!</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // File upload handling
+        let selectedFiles = [];
+        
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            selectedFiles = selectedFiles.concat(files);
+            updateAttachmentsPreview();
+        }
+        
+        function updateAttachmentsPreview() {
+            const preview = document.getElementById('attachments-preview');
+            if (selectedFiles.length === 0) {
+                preview.classList.add('hidden');
+                return;
+            }
+            
+            preview.classList.remove('hidden');
+            preview.innerHTML = selectedFiles.map((file, index) => {
+                const isImage = file.type.startsWith('image/');
+                const icon = isImage ? '🖼️' : '📄';
+                return `
+                    <div class="badge badge-lg gap-2">
+                        <span>${icon} ${file.name}</span>
+                        <button type="button" class="btn btn-ghost btn-xs btn-circle" onclick="removeFile(${index})">✕</button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateAttachmentsPreview();
+            
+            // Reset file input
+            const fileInput = document.getElementById('file-upload');
+            fileInput.value = '';
+        }
+        
+        // Voice recording
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        
+        document.getElementById('voice-btn').addEventListener('click', async function() {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+                        selectedFiles.push(audioFile);
+                        updateAttachmentsPreview();
+                        
+                        // Stop all tracks
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    
+                    // Update button UI
+                    this.classList.add('btn-error');
+                    this.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="8"/>
+                        </svg>
+                    `;
+                    this.title = 'Stop recording';
+                } catch (err) {
+                    console.error('Error accessing microphone:', err);
+                    alert('Unable to access microphone. Please check permissions.');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // Reset button UI
+                this.classList.remove('btn-error');
+                this.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                `;
+                this.title = 'Record voice message';
+            }
+        });
+        
+        // Auto-resize textarea
+        const messageInput = document.getElementById('message-input');
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+        });
+    </script>
+</body>
+</html>

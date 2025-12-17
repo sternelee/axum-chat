@@ -3,3 +3,4 @@
 *.db*
 tailwindcss
 output.css
+/uploads

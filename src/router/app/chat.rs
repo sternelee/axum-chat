@@ -387,14 +387,72 @@ pub struct ChatAddMessage {
     message: String,
 }
 
+use axum::extract::Multipart;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
+use std::path::PathBuf;
+
 #[axum::debug_handler]
 pub async fn chat_add_message(
     Path(chat_id): Path<i64>,
     State(state): State<Arc<AppState>>,
     Extension(_current_user): Extension<Option<User>>,
-    Form(chat_add_message): Form<ChatAddMessage>,
+    mut multipart: Multipart,
 ) -> Result<Html<String>, ChatError> {
-    let message = chat_add_message.message;
+    let mut message = String::new();
+    let mut file_attachments = Vec::new();
+    
+    // Create uploads directory if it doesn't exist
+    tokio::fs::create_dir_all("uploads").await.map_err(|_| ChatError::Other)?;
+    
+    // Process multipart form data
+    while let Some(field) = multipart.next_field().await.map_err(|_| ChatError::Other)? {
+        let name = field.name().unwrap_or("").to_string();
+        
+        if name == "message" {
+            message = field.text().await.map_err(|_| ChatError::Other)?;
+        } else if name == "files" {
+            let filename = field.file_name().unwrap_or("unknown").to_string();
+            let data = field.bytes().await.map_err(|_| ChatError::Other)?;
+            
+            // Generate unique filename
+            let timestamp = chrono::Utc::now().timestamp();
+            let path_buf = PathBuf::from(&filename);
+            let extension = path_buf
+                .extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or("bin")
+                .to_string();
+            let unique_filename = format!("{}-{}.{}", timestamp, uuid::Uuid::new_v4(), extension);
+            let file_path = format!("uploads/{}", unique_filename);
+            
+            // Save file
+            let mut file = File::create(&file_path).await.map_err(|_| ChatError::Other)?;
+            file.write_all(&data).await.map_err(|_| ChatError::Other)?;
+            
+            // Determine if it's an image
+            let is_image = filename.ends_with(".jpg") || filename.ends_with(".jpeg") 
+                || filename.ends_with(".png") || filename.ends_with(".gif") 
+                || filename.ends_with(".webp");
+            
+            file_attachments.push((filename, file_path, is_image));
+        }
+    }
+    
+    // Add file references to message
+    if !file_attachments.is_empty() {
+        let attachments_text = file_attachments.iter()
+            .map(|(name, path, is_image)| {
+                if *is_image {
+                    format!("\n\n![{}](/{})  ", name, path)
+                } else {
+                    format!("\n\n[📎 {}](/{})  ", name, path)
+                }
+            })
+            .collect::<String>();
+        message.push_str(&attachments_text);
+    }
+    
     state
         .chat_repo
         .add_message_block(chat_id, &message)

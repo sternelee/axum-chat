@@ -40,6 +40,7 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route("/signup", get(signup).post(form_signup))
         .route("/logout", get(logout))
         .route("/demo", get(demo))
+        .route("/demo-file-voice", get(demo_file_voice))
         .nest("/chat", chat_router)
         .nest("/settings", settings_router)
         .with_state(state.clone())
@@ -47,6 +48,12 @@ pub fn app_router(state: Arc<AppState>) -> Router {
 
 async fn demo(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
     let rendered = state.tera.render("views/demo_extended_features.html", &tera::Context::new())
+        .unwrap_or_else(|e| format!("Error rendering demo page: {}", e));
+    axum::response::Html(rendered)
+}
+
+async fn demo_file_voice(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
+    let rendered = state.tera.render("views/demo_file_voice.html", &tera::Context::new())
         .unwrap_or_else(|e| format!("Error rendering demo page: {}", e));
     axum::response::Html(rendered)
 }

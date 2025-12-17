@@ -66,6 +66,7 @@ async fn main() {
     let chat_repo = ChatRepository { pool: pool.clone() };
 
     let static_files = ServeDir::new("assets");
+    let uploads_files = ServeDir::new("uploads");
 
     let tera = match Tera::new("templates/**/*") {
         Ok(t) => t,
@@ -92,6 +93,7 @@ async fn main() {
         // )
         // Use `merge` to combine routers
         .nest_service("/assets", static_files)
+        .nest_service("/uploads", uploads_files)
         .merge(app_router(shared_app_state.clone()))
         .layer(axum::middleware::from_fn_with_state(
             shared_app_state.clone(),
