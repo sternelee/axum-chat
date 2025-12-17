@@ -27,6 +27,15 @@ pub struct ChatMessagePair {
     pub ai_message: Option<String>,
     pub block_rank: i64,
     pub block_size: i64,
+    // Extended AI response data
+    pub thinking: Option<String>,
+    pub tool_calls: Option<String>, // JSON string
+    pub images: Option<String>,     // JSON string
+    pub reasoning: Option<String>,
+    pub usage_prompt_tokens: Option<i64>,
+    pub usage_completion_tokens: Option<i64>,
+    pub usage_total_tokens: Option<i64>,
+    pub sources: Option<String>, // JSON string
 }
 
 // Extended AI response data structures

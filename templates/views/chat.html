@@ -34,8 +34,10 @@
 
                 {% if pair.pair.ai_message %}
                 {{ macros::message(variant="ai", text=pair.ai_message_html) }}
-                {% else %}
+                {% elif not pair.pair.ai_message and loop.last %}
                 {{ macros::message(variant="ai-sse", text="") }}
+                {% else %}
+                {{ macros::message(variant="ai", text="<em class='text-gray-500'>Response was cancelled or incomplete</em>") }}
                 {% endif %}
 
                 {% endfor %}

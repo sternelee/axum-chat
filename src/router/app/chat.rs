@@ -252,19 +252,62 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
 }
 
 pub enum ChatError {
-    Other,
+    DatabaseError(String),
     InvalidAPIKey,
+    EmptyAPIKey,
+    ChatNotFound,
+    MissingUser,
+    InvalidMessage,
+    NetworkError(String),
+    ServerError(String),
 }
-// Implement Display for ChatError to provide user-facing error messages.
+
+impl std::fmt::Display for ChatError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChatError::DatabaseError(msg) => write!(f, "Database error: {}", msg),
+            ChatError::InvalidAPIKey => write!(f, "Invalid API key"),
+            ChatError::EmptyAPIKey => write!(f, "API key is required"),
+            ChatError::ChatNotFound => write!(f, "Chat not found"),
+            ChatError::MissingUser => write!(f, "User not authenticated"),
+            ChatError::InvalidMessage => write!(f, "Invalid message format"),
+            ChatError::NetworkError(msg) => write!(f, "Network error: {}", msg),
+            ChatError::ServerError(msg) => write!(f, "Server error: {}", msg),
+        }
+    }
+}
 
 impl IntoResponse for ChatError {
     fn into_response(self) -> Response {
-        match self {
-            ChatError::Other => (StatusCode::BAD_REQUEST, Json("Chat Errror")).into_response(),
-            ChatError::InvalidAPIKey => {
-                (StatusCode::UNAUTHORIZED, Json("Chat Errror")).into_response()
+        let (status, error_message) = match self {
+            ChatError::DatabaseError(msg) => {
+                tracing::error!("Database error: {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal database error")
             }
-        }
+            ChatError::InvalidAPIKey => {
+                (StatusCode::UNAUTHORIZED, "Invalid API key. Please check your settings.")
+            }
+            ChatError::EmptyAPIKey => {
+                (StatusCode::BAD_REQUEST, "API key is required. Please configure it in settings.")
+            }
+            ChatError::ChatNotFound => (StatusCode::NOT_FOUND, "Chat not found"),
+            ChatError::MissingUser => (StatusCode::UNAUTHORIZED, "User not authenticated"),
+            ChatError::InvalidMessage => (StatusCode::BAD_REQUEST, "Message cannot be empty"),
+            ChatError::NetworkError(msg) => {
+                tracing::error!("Network error: {}", msg);
+                (StatusCode::BAD_GATEWAY, "Failed to connect to AI service")
+            }
+            ChatError::ServerError(msg) => {
+                tracing::error!("Server error: {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+            }
+        };
+
+        let body = Json(serde_json::json!({
+            "error": error_message
+        }));
+
+        (status, body).into_response()
     }
 }
 
@@ -303,7 +346,12 @@ pub async fn new_chat(
     Extension(current_user): Extension<Option<User>>,
     Form(new_chat): Form<NewChat>,
 ) -> Result<Response<String>, ChatError> {
-    let current_user = current_user.unwrap();
+    // Validate message
+    if new_chat.message.trim().is_empty() {
+        return Err(ChatError::InvalidMessage);
+    }
+
+    let current_user = current_user.ok_or_else(|| ChatError::MissingUser)?;
 
     // Use model from user settings, fallback to default if not set
     let model = current_user.model.as_deref().unwrap_or("Qwen/Qwen2.5-7B-Instruct");
@@ -312,19 +360,19 @@ pub async fn new_chat(
         .chat_repo
         .create_chat(current_user.id, &new_chat.message, model)
         .await
-        .map_err(|_| ChatError::Other)?;
+        .map_err(|e| ChatError::DatabaseError(format!("Failed to create chat: {}", e)))?;
 
     state
         .chat_repo
         .add_message_block(chat_id, &new_chat.message)
         .await
-        .map_err(|_| ChatError::Other)?;
+        .map_err(|e| ChatError::DatabaseError(format!("Failed to add message: {}", e)))?;
 
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header("HX-Redirect", format!("/chat/{}", chat_id).as_str())
         .body("".to_string())
-        .unwrap())
+        .map_err(|e| ChatError::ServerError(format!("Failed to build response: {}", e)))?)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -344,20 +392,67 @@ pub async fn chat_by_id(
         .chat_repo
         .retrieve_chat(chat_id)
         .await
-        .map_err(|_| ChatError::Other)?;
+        .map_err(|e| ChatError::DatabaseError(format!("Failed to retrieve chat: {}", e)))?;
 
+    let current_user = current_user.ok_or_else(|| ChatError::MissingUser)?;
     let user_chats = state
         .chat_repo
-        .get_all_chats(current_user.as_ref().unwrap().id)
+        .get_all_chats(current_user.id)
         .await
-        .unwrap();
+        .map_err(|e| ChatError::DatabaseError(format!("Failed to retrieve user chats: {}", e)))?;
 
     let parsed_pairs = chat_message_pairs
         .iter()
         .map(|pair| {
             let human_message_html = markdown_to_html(&pair.human_message);
-            let ai_message_html =
-                markdown_to_html(&pair.clone().ai_message.unwrap_or("".to_string()));
+
+            // Reconstruct extended message data if AI message exists
+            let ai_message_html = if let Some(ai_message) = &pair.ai_message {
+                let mut acc = MessageAccumulator {
+                    text: ai_message.clone(),
+                    thinking: pair.thinking.clone().unwrap_or_default(),
+                    reasoning: pair.reasoning.clone().unwrap_or_default(),
+                    tool_calls: Vec::new(),
+                    images: Vec::new(),
+                    usage: None,
+                    sources: Vec::new(),
+                };
+
+                // Parse tool calls
+                if let Some(tool_calls_json) = &pair.tool_calls {
+                    if let Ok(parsed) = serde_json::from_str::<Vec<crate::data::model::ToolCall>>(tool_calls_json) {
+                        acc.tool_calls = parsed;
+                    }
+                }
+
+                // Parse images
+                if let Some(images_json) = &pair.images {
+                    if let Ok(parsed) = serde_json::from_str::<Vec<String>>(images_json) {
+                        acc.images = parsed;
+                    }
+                }
+
+                // Parse sources
+                if let Some(sources_json) = &pair.sources {
+                    if let Ok(parsed) = serde_json::from_str::<Vec<crate::data::model::Source>>(sources_json) {
+                        acc.sources = parsed;
+                    }
+                }
+
+                // Parse usage
+                if pair.usage_prompt_tokens.is_some() || pair.usage_completion_tokens.is_some() || pair.usage_total_tokens.is_some() {
+                    acc.usage = Some(crate::data::model::UsageInfo {
+                        prompt_tokens: pair.usage_prompt_tokens.unwrap_or(0),
+                        completion_tokens: pair.usage_completion_tokens.unwrap_or(0),
+                        total_tokens: pair.usage_total_tokens.unwrap_or(0),
+                    });
+                }
+
+                render_message_html(&acc)
+            } else {
+                String::new()
+            };
+
             ParsedMessagePair {
                 pair: pair.clone(),
                 human_message_html,
@@ -403,17 +498,21 @@ pub async fn chat_add_message(
     let mut file_attachments = Vec::new();
     
     // Create uploads directory if it doesn't exist
-    tokio::fs::create_dir_all("uploads").await.map_err(|_| ChatError::Other)?;
+    tokio::fs::create_dir_all("uploads").await
+        .map_err(|e| ChatError::ServerError(format!("Failed to create uploads directory: {}", e)))?;
     
     // Process multipart form data
-    while let Some(field) = multipart.next_field().await.map_err(|_| ChatError::Other)? {
+    while let Some(field) = multipart.next_field().await
+        .map_err(|e| ChatError::ServerError(format!("Failed to read multipart field: {}", e)))? {
         let name = field.name().unwrap_or("").to_string();
-        
+
         if name == "message" {
-            message = field.text().await.map_err(|_| ChatError::Other)?;
+            message = field.text().await
+                .map_err(|e| ChatError::ServerError(format!("Failed to read message text: {}", e)))?;
         } else if name == "files" {
             let filename = field.file_name().unwrap_or("unknown").to_string();
-            let data = field.bytes().await.map_err(|_| ChatError::Other)?;
+            let data = field.bytes().await
+                .map_err(|e| ChatError::ServerError(format!("Failed to read file data: {}", e)))?;
             
             // Generate unique filename
             let timestamp = chrono::Utc::now().timestamp();
@@ -427,8 +526,10 @@ pub async fn chat_add_message(
             let file_path = format!("uploads/{}", unique_filename);
             
             // Save file
-            let mut file = File::create(&file_path).await.map_err(|_| ChatError::Other)?;
-            file.write_all(&data).await.map_err(|_| ChatError::Other)?;
+            let mut file = File::create(&file_path).await
+                .map_err(|e| ChatError::ServerError(format!("Failed to create file: {}", e)))?;
+            file.write_all(&data).await
+                .map_err(|e| ChatError::ServerError(format!("Failed to write file: {}", e)))?;
             
             // Determine if it's an image
             let is_image = filename.ends_with(".jpg") || filename.ends_with(".jpeg") 
@@ -453,11 +554,16 @@ pub async fn chat_add_message(
         message.push_str(&attachments_text);
     }
     
+    // Validate message
+    if message.trim().is_empty() {
+        return Err(ChatError::InvalidMessage);
+    }
+
     state
         .chat_repo
         .add_message_block(chat_id, &message)
         .await
-        .map_err(|_| ChatError::Other)?;
+        .map_err(|e| ChatError::DatabaseError(format!("Failed to add message: {}", e)))?;
 
     let human_message_html = markdown_to_html(&message);
     
@@ -477,16 +583,31 @@ pub async fn chat_generate(
     Path(chat_id): Path<i64>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, axum::Error>>>, ChatError> {
-    let chat_message_pairs = state.chat_repo.retrieve_chat(chat_id).await.unwrap();
-    let user = current_user.unwrap();
-    let key = user.openai_api_key.unwrap_or(String::new());
+    let user = current_user.ok_or_else(|| ChatError::MissingUser)?;
+
+    // Check if user has API key configured
+    let key = user.openai_api_key.ok_or_else(|| ChatError::EmptyAPIKey)?;
+
+    if key.trim().is_empty() {
+        return Err(ChatError::EmptyAPIKey);
+    }
+
+    // Retrieve chat messages
+    let chat_message_pairs = state.chat_repo.retrieve_chat(chat_id).await
+        .map_err(|e| ChatError::DatabaseError(format!("Failed to retrieve chat: {}", e)))?;
+
+    if chat_message_pairs.is_empty() {
+        return Err(ChatError::ChatNotFound);
+    }
 
     // Use model from user settings, fallback to default if not set
     let model = user.model.clone().unwrap_or_else(|| "Qwen/Qwen2.5-7B-Instruct".to_string());
 
+    // Validate API key
     match list_engines(&key).await {
         Ok(_res) => {}
-        Err(_) => {
+        Err(e) => {
+            tracing::error!("API key validation failed: {:?}", e);
             return Err(ChatError::InvalidAPIKey);
         }
     };
@@ -570,11 +691,39 @@ pub async fn chat_generate(
                             Some((Ok(Event::default().data(html)), (rc, acc)))
                         }
                         GenerationEvent::End(_text) => {
-                            // Save to database - we'll store extended data as JSON in metadata
-                            // For now, just save the main text content
+                            // Save to database with extended data
+                            let tool_calls_json = if !acc.tool_calls.is_empty() {
+                                serde_json::to_string(&acc.tool_calls).ok()
+                            } else {
+                                None
+                            };
+
+                            let images_json = if !acc.images.is_empty() {
+                                serde_json::to_string(&acc.images).ok()
+                            } else {
+                                None
+                            };
+
+                            let sources_json = if !acc.sources.is_empty() {
+                                serde_json::to_string(&acc.sources).ok()
+                            } else {
+                                None
+                            };
+
                             state_clone
                                 .chat_repo
-                                .add_ai_message_to_pair(lat_message_id, &acc.text)
+                                .add_ai_message_with_extended_data(
+                                    lat_message_id,
+                                    &acc.text,
+                                    if !acc.thinking.is_empty() { Some(&acc.thinking) } else { None },
+                                    tool_calls_json.as_deref(),
+                                    images_json.as_deref(),
+                                    if !acc.reasoning.is_empty() { Some(&acc.reasoning) } else { None },
+                                    acc.usage.as_ref().map(|u| u.prompt_tokens),
+                                    acc.usage.as_ref().map(|u| u.completion_tokens),
+                                    acc.usage.as_ref().map(|u| u.total_tokens),
+                                    sources_json.as_deref(),
+                                )
                                 .await
                                 .unwrap();
 
@@ -599,7 +748,12 @@ pub async fn delete_chat(
     Path(chat_id): Path<i64>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Html<String>, ChatError> {
-    state.chat_repo.delete_chat(chat_id).await.unwrap();
+    let rows_affected = state.chat_repo.delete_chat(chat_id).await
+        .map_err(|e| ChatError::DatabaseError(format!("Failed to delete chat: {}", e)))?;
+
+    if rows_affected == 0 {
+        return Err(ChatError::ChatNotFound);
+    }
 
     let html = r#"<div class="hidden"></div>"#;
 

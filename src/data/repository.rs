@@ -30,13 +30,42 @@ impl ChatRepository {
     }
 
     pub async fn retrieve_chat(&self, chat_id: i64) -> sqlx::Result<Vec<ChatMessagePair>> {
-        sqlx::query_as!(
-            ChatMessagePair,
-            "SELECT * FROM v_chat_messages WHERE chat_id = ?",
+        let rows = sqlx::query!(
+            r#"
+            SELECT
+                id, message_block_id, chat_id, model, human_message, ai_message,
+                block_rank, block_size, thinking, tool_calls, images, reasoning,
+                usage_prompt_tokens, usage_completion_tokens, usage_total_tokens, sources
+            FROM v_chat_messages
+            WHERE chat_id = ?
+            "#,
             chat_id
         )
         .fetch_all(&*self.pool)
-        .await
+        .await?;
+
+        let pairs = rows.into_iter().map(|row| {
+            ChatMessagePair {
+                id: row.id,
+                message_block_id: row.message_block_id,
+                chat_id: row.chat_id,
+                model: row.model,
+                human_message: row.human_message,
+                ai_message: row.ai_message,
+                block_rank: row.block_rank,
+                block_size: row.block_size,
+                thinking: row.thinking,
+                tool_calls: row.tool_calls,
+                images: row.images,
+                reasoning: row.reasoning,
+                usage_prompt_tokens: row.usage_prompt_tokens,
+                usage_completion_tokens: row.usage_completion_tokens,
+                usage_total_tokens: row.usage_total_tokens,
+                sources: row.sources,
+            }
+        }).collect();
+
+        Ok(pairs)
     }
     pub async fn create_chat(&self, user_id: i64, name: &str, model: &str) -> sqlx::Result<i64> {
         //create chat
@@ -63,6 +92,59 @@ impl ChatRepository {
             VALUES (?) RETURNING id;
             "#,
             message
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            UPDATE message_pairs
+            SET ai_message_id = ?
+            WHERE id = ?;
+            "#,
+            message.id,
+            pair_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(message.id)
+    }
+
+    pub async fn add_ai_message_with_extended_data(
+        &self,
+        pair_id: i64,
+        message: &str,
+        thinking: Option<&str>,
+        tool_calls: Option<&str>,
+        images: Option<&str>,
+        reasoning: Option<&str>,
+        usage_prompt_tokens: Option<i64>,
+        usage_completion_tokens: Option<i64>,
+        usage_total_tokens: Option<i64>,
+        sources: Option<&str>,
+    ) -> sqlx::Result<i64> {
+        let mut tx: Transaction<Sqlite> = self.pool.begin().await?;
+
+        let message = sqlx::query!(
+            r#"
+            INSERT INTO messages (
+                message, thinking, tool_calls, images, reasoning,
+                usage_prompt_tokens, usage_completion_tokens, usage_total_tokens, sources
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id;
+            "#,
+            message,
+            thinking,
+            tool_calls,
+            images,
+            reasoning,
+            usage_prompt_tokens,
+            usage_completion_tokens,
+            usage_total_tokens,
+            sources
         )
         .fetch_one(&mut *tx)
         .await?;
