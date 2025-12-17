@@ -39,7 +39,13 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route("/login", get(login).post(login_form))
         .route("/signup", get(signup).post(form_signup))
         .route("/logout", get(logout))
+        .route("/demo", get(demo))
         .nest("/chat", chat_router)
         .nest("/settings", settings_router)
         .with_state(state.clone())
+}
+
+async fn demo(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> axum::response::Html<String> {
+    let rendered = state.tera.render("views/demo_extended_features.html", &tera::Context::new()).unwrap();
+    axum::response::Html(rendered)
 }
