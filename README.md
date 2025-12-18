@@ -51,6 +51,15 @@ OPENAI_API_KEY=<api-key> (only necessary for tests, users will add their own key
 6. `just dev`: concurrently run tailwind and cargo run in watch mode
 7. Open your browser and enjoy chatting with your Rust-powered ChatGPT clone (port 3000 by default)
 
+### A2UI backend sample
+
+The server now exposes a lightweight A2UI backend endpoint that returns a declarative component tree compatible with the [A2UI](https://github.com/google/A2UI) specification (v0.8).
+
+- `POST /api/a2ui` – accepts JSON body `{ "intent": "...", "location": "..." }` and echoes the values into the returned UI data bindings.
+- `GET /api/a2ui/example` – returns a static sample payload that A2UI renderers can display.
+
+This makes it easy to pair an A2UI-capable frontend renderer with the existing Rust backend.
+
 ## Contributing 🤝
 
 Contributions are what make the open-source community an incredible place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
