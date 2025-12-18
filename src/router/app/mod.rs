@@ -10,11 +10,19 @@ use crate::AppState;
 mod home;
 use home::app;
 mod chat;
-use chat::{chat, chat_add_message, chat_by_id, chat_generate, delete_chat, new_chat, confirm_tool_call, reject_tool_call};
+use chat::{
+    chat, chat_add_message, chat_by_id, chat_generate, confirm_tool_call, delete_chat, new_chat,
+    reject_tool_call,
+};
 mod auth;
 use auth::{form_signup, login, login_form, logout, signup};
 mod settings;
-use settings::{settings, settings_openai_api_key, mcp_settings, update_mcp_settings, delete_mcp_server, restart_mcp_server};
+use settings::{
+    delete_mcp_server, mcp_settings, restart_mcp_server, settings, settings_openai_api_key,
+    update_mcp_settings,
+};
+mod a2ui;
+use a2ui::{a2ui_example, generate_a2ui};
 mod error;
 use error::error;
 
@@ -26,8 +34,14 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route("/{id}", get(chat_by_id).delete(delete_chat))
         .route("/{id}/message/add", post(chat_add_message))
         .route("/{id}/generate", get(chat_generate))
-        .route("/{id}/tool-confirm/{confirmation_id}", post(confirm_tool_call))
-        .route("/{id}/tool-reject/{confirmation_id}", post(reject_tool_call))
+        .route(
+            "/{id}/tool-confirm/{confirmation_id}",
+            post(confirm_tool_call),
+        )
+        .route(
+            "/{id}/tool-reject/{confirmation_id}",
+            post(reject_tool_call),
+        )
         .with_state(state.clone())
         .layer(axum::middleware::from_fn(auth));
 
@@ -49,6 +63,8 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route("/demo-file-voice", get(demo_file_voice))
         .route("/demo-multi-turn", get(demo_multi_turn))
         .route("/demo-loading", get(demo_loading))
+        .route("/api/a2ui", post(generate_a2ui))
+        .route("/api/a2ui/example", get(a2ui_example))
         .nest("/chat", chat_router)
         .nest("/settings", settings_router)
         .with_state(state.clone())
