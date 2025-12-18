@@ -1,0 +1,31 @@
+{
+  "mcp_servers": {
+    "mcp-box": {
+      "disabled": true,
+      "url": "http://localhost:3300/sse"
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ],
+      "description": "find newest development docs",
+      "timeout": 60000,
+      "transport": "stdio",
+      "disabled": false
+    },
+    "filesystem": {
+      "disabled": true,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/sternelee/www/github/axum-chat"
+      ],
+      "description": "Filesystem access for the project",
+      "timeout": 60,
+      "transport": "stdio"
+    }
+  }
+}

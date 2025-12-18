@@ -46,7 +46,7 @@
         pair.pair.ai_message %} {{ macros::message(variant="ai",
         text=pair.ai_message_html) }} {% elif not pair.pair.ai_message and
         loop.last %} {{ macros::message(variant="ai-sse", text="") }} {% else %}
-        {{ macros::message(variant="ai", text="<em class="text-gray-500"
+        {{ macros::message(variant="ai", text="<em
           >Response was cancelled or incomplete</em
         >") }} {% endif %} {% endfor %} {% endif %}
 
@@ -417,7 +417,7 @@
       class="drawer-overlay"
     ></label>
     <div
-      class="menu p-4 w-80 min-h-full bg-base-200 text-base-content flex flex-col"
+      class="menu p-4 w-80 min-h-full bg-base-200 text-base-content flex flex-col overflow-hidden"
     >
       <!-- Sidebar content here -->
       <a href="/chat" class="btn btn-primary w-full mb-4 gap-2">
@@ -438,13 +438,13 @@
         New Chat
       </a>
 
-      <div class="flex-grow overflow-y-auto">
+      <div class="flex-grow overflow-y-auto w-full">
         <ul class="menu w-full p-0">
           {% if user_chats %} {% for chat in user_chats %}
-          <li class="relative group">
+          <li class="relative group w-full">
             <a
               href="/chat/{{ chat.id }}"
-              class="{% if chat_id and chat_id==chat.id %}active{% endif %} flex justify-between items-center pr-12"
+              class="{% if chat_id and chat_id==chat.id %}active{% endif %} flex justify-between items-center pr-12 w-full"
             >
               <span class="truncate">{{ chat.name }}</span>
             </a>

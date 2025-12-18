@@ -1,0 +1,46 @@
+{
+  "mcp_servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/sternelee/www/github/axum-chat"],
+      "description": "Filesystem access for the axum-chat project directory",
+      "timeout": 300,
+      "transport": "stdio"
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "description": "GitHub integration for repository management",
+      "timeout": 300,
+      "transport": "stdio",
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "description": "Persistent memory for conversations",
+      "timeout": 300,
+      "transport": "stdio"
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "description": "Web browser automation and screenshots",
+      "timeout": 300,
+      "transport": "stdio"
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "description": "Brave search engine integration",
+      "timeout": 300,
+      "transport": "stdio",
+      "env": {
+        "BRAVE_API_KEY": ""
+      },
+      "disabled": true
+    }
+  }
+}

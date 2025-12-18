@@ -24,7 +24,7 @@
   </div>
   <div class="chat-bubble prose max-w-none min-w-full">
     {% if variant == "ai-sse" %}
-    <div id="message-container">
+    <div id="message-container flex flex-col gap-1">
       <div
         id="thinking-container"
         class="collapse collapse-arrow bg-base-200 mb-4 hidden"
@@ -171,45 +171,65 @@
           if (event.data) {
             hasContent = true;
 
-            try {
-              // Parse event data to check if it's a special update
-              const data = JSON.parse(event.data);
+            // Debug log to see what we're receiving
+            console.log("SSE event data:", event.data);
 
-              if (data.type === "thinking_update") {
-                // Update only thinking content, preserve collapse structure
-                const thinkingContainer =
-                  document.getElementById("thinking-container");
-                const thinkingContent = thinkingContainer
-                  ? thinkingContainer.querySelector(".collapse-content div")
-                  : null;
-                if (thinkingContainer && thinkingContent) {
-                  // Show the container and make it interactive
-                  thinkingContainer.classList.remove("hidden");
-                  thinkingContainer.classList.add("collapse-open");
-                  // Update content
-                  thinkingContent.innerHTML = data.content;
-                }
-              } else if (data.type === "reasoning_update") {
-                // Update only reasoning content, preserve collapse structure
-                const reasoningContainer = document.getElementById(
-                  "reasoning-container",
-                );
-                const reasoningContent = reasoningContainer
-                  ? reasoningContainer.querySelector(".collapse-content div")
-                  : null;
-                if (reasoningContainer && reasoningContent) {
-                  // Show the container and make it interactive
-                  reasoningContainer.classList.remove("hidden");
-                  reasoningContainer.classList.add("collapse-open");
-                  // Update content
-                  reasoningContent.innerHTML = data.content;
-                }
-              } else {
-                // Regular content update
+            // Check if this is a tool call confirmation (special case that still needs JSON parsing)
+            if (event.data.trim().startsWith('{"type":"tool_call_confirmation"')) {
+              try {
+                const data = JSON.parse(event.data);
+                // Handle tool call confirmation request
+                const confirmation = data.content;
+                const toolName = confirmation.tool_call.function.name;
+                const toolArgs = JSON.parse(confirmation.tool_call.function.arguments);
+
+                console.log("Received tool call confirmation:", confirmation);
+
+                const confirmationHtml = `
+                  <div class="alert alert-info mt-4" id="tool-confirmation-${confirmation.id}">
+                    <div class="flex items-start gap-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div class="flex-1">
+                        <h3 class="font-bold">Tool Call Confirmation Required</h3>
+                        <div class="text-sm mt-1">
+                          <p><strong>Tool:</strong> ${toolName}</p>
+                          <p><strong>Description:</strong> ${confirmation.description || 'No description available'}</p>
+                          ${Object.keys(toolArgs).length > 0 ?
+                            `<p><strong>Arguments:</strong></p>
+                             <pre class="bg-base-200 p-2 rounded text-xs overflow-x-auto">${JSON.stringify(toolArgs, null, 2)}</pre>`
+                            : ''
+                          }
+                        </div>
+                        <div class="flex gap-2 mt-3">
+                          <button
+                            class="btn btn-success btn-sm"
+                            hx-post="/chat/${confirmation.chat_id}/tool-confirm/${confirmation.id}"
+                            hx-target="#tool-confirmation-${confirmation.id}"
+                            hx-swap="outerHTML">
+                            Approve
+                          </button>
+                          <button
+                            class="btn btn-error btn-sm"
+                            hx-post="/chat/${confirmation.chat_id}/tool-reject/${confirmation.id}"
+                            hx-target="#tool-confirmation-${confirmation.id}"
+                            hx-swap="outerHTML">
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+
+                messageContainer.innerHTML += confirmationHtml;
+              } catch (e) {
+                // console.error("Failed to parse tool call confirmation:", e);
                 messageContainer.innerHTML = event.data;
               }
-            } catch (e) {
-              // Not JSON, treat as regular HTML
+            } else {
+              // Regular HTML content - just replace the entire message container
               messageContainer.innerHTML = event.data;
             }
 

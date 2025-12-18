@@ -23,10 +23,10 @@
   </body>
 
   <script>
-//     // Load saved theme on all pages
-//     (function() {
-//         const savedTheme = localStorage.getItem('theme') || 'sunset';
-//         document.documentElement.setAttribute('data-theme', savedTheme');
-//     })();
+    // Load saved theme on all pages
+    (function() {
+        const savedTheme = localStorage.getItem('theme') || 'sunset';
+        document.documentElement.setAttribute('data-theme', savedTheme');
+    })();
   </script>
 </html>

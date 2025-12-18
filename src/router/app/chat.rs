@@ -138,6 +138,106 @@ struct MessageAccumulator {
     sources: Vec<crate::data::model::Source>,
 }
 
+fn render_message_text_only(acc: &MessageAccumulator) -> String {
+    let mut html = String::new();
+
+    // Only render the main text content, reasoning and thinking are handled separately
+
+    // Render the main text content with markdown
+    if !acc.text.is_empty() {
+        html.push_str(&markdown_to_html(&acc.text));
+    }
+
+    // Render tool calls
+    for tool_call in &acc.tool_calls {
+        html.push_str(r#"<div class="card bg-accent/10 mb-4 border border-accent/20">"#);
+        html.push_str(r#"<div class="card-body p-4">"#);
+        html.push_str(r#"<div class="flex items-center gap-2 mb-2">"#);
+        html.push_str(r#"<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>"#);
+        html.push_str(r#"<span class="font-semibold text-accent">Tool Call: </span>"#);
+        html.push_str(&html_escape::encode_text(&tool_call.function.name));
+        html.push_str("</div>");
+        html.push_str(r#"<div class="mockup-code text-xs"><pre><code>"#);
+        // Pretty print JSON arguments if possible
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&tool_call.function.arguments)
+        {
+            if let Ok(pretty) = serde_json::to_string_pretty(&parsed) {
+                html.push_str(&html_escape::encode_text(&pretty));
+            } else {
+                html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
+            }
+        } else {
+            html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
+        }
+        html.push_str("</code></pre></div>");
+        html.push_str("</div></div>");
+    }
+
+    // Render images
+    for image_url in &acc.images {
+        html.push_str(r#"<div class="mb-4"><img src=""#);
+        html.push_str(&html_escape::encode_quoted_attribute(image_url));
+        html.push_str(r#"" alt="Generated image" class="rounded-lg max-w-md shadow-lg" /></div>"#);
+    }
+
+    // Render main text content
+    if !acc.text.is_empty() {
+        html.push_str(&markdown_to_html(&acc.text));
+    }
+
+    // Render sources
+    if !acc.sources.is_empty() {
+        html.push_str(r#"<div class="divider mt-4">Sources</div>"#);
+        html.push_str(r#"<div class="flex flex-col gap-2">"#);
+        for (idx, source) in acc.sources.iter().enumerate() {
+            html.push_str(r#"<div class="card bg-base-200 compact">"#);
+            html.push_str(r#"<div class="card-body p-3">"#);
+            html.push_str(r#"<div class="flex items-start gap-2">"#);
+            html.push_str(&format!(
+                r#"<span class="badge badge-primary badge-sm">{}</span>"#,
+                idx + 1
+            ));
+            html.push_str(r#"<div class="flex-1">"#);
+            if let Some(title) = &source.title {
+                html.push_str(r#"<h4 class="font-semibold text-sm">"#);
+                html.push_str(&html_escape::encode_text(title));
+                html.push_str("</h4>");
+            }
+            if let Some(snippet) = &source.snippet {
+                html.push_str(r#"<p class="text-xs opacity-75 mt-1">"#);
+                html.push_str(&html_escape::encode_text(snippet));
+                html.push_str("</p>");
+            }
+            if let Some(url) = &source.url {
+                html.push_str(r#"<a href=""#);
+                html.push_str(&html_escape::encode_quoted_attribute(url));
+                html.push_str(
+                    r#"" target="_blank" class="link link-primary text-xs mt-1">View source →</a>"#,
+                );
+            }
+            html.push_str("</div></div></div></div>");
+        }
+        html.push_str("</div>");
+    }
+
+    // Render usage statistics
+    if let Some(usage) = &acc.usage {
+        html.push_str(r#"<div class="stats stats-horizontal shadow mt-4 text-xs">"#);
+        html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Prompt</div><div class="stat-value text-sm">"#);
+        html.push_str(&usage.prompt_tokens.to_string());
+        html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+        html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Completion</div><div class="stat-value text-sm">"#);
+        html.push_str(&usage.completion_tokens.to_string());
+        html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+        html.push_str(r#"<div class="stat py-2 px-4"><div class="stat-title text-xs">Total</div><div class="stat-value text-sm">"#);
+        html.push_str(&usage.total_tokens.to_string());
+        html.push_str(r#"</div><div class="stat-desc">tokens</div></div>"#);
+        html.push_str("</div>");
+    }
+
+    html
+}
+
 fn render_message_html(acc: &MessageAccumulator) -> String {
     let mut html = String::new();
 
@@ -177,6 +277,11 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
     html.push_str(&html_escape::encode_text(&acc.reasoning));
     html.push_str("</div></div></div>");
 
+    // Render the main text content with markdown
+    if !acc.text.is_empty() {
+        html.push_str(&markdown_to_html(&acc.text));
+    }
+
     // Render tool calls
     for tool_call in &acc.tool_calls {
         html.push_str(r#"<div class="card bg-accent/10 mb-4 border border-accent/20">"#);
@@ -187,31 +292,18 @@ fn render_message_html(acc: &MessageAccumulator) -> String {
         html.push_str(&html_escape::encode_text(&tool_call.function.name));
         html.push_str("</div>");
         html.push_str(r#"<div class="mockup-code text-xs"><pre><code>"#);
-        // Pretty print JSON arguments if possible
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&tool_call.function.arguments)
-        {
-            if let Ok(pretty) = serde_json::to_string_pretty(&parsed) {
-                html.push_str(&html_escape::encode_text(&pretty));
-            } else {
-                html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
-            }
-        } else {
-            html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
-        }
+        html.push_str(&html_escape::encode_text(&tool_call.function.arguments));
         html.push_str("</code></pre></div>");
         html.push_str("</div></div>");
     }
 
     // Render images
     for image_url in &acc.images {
-        html.push_str(r#"<div class="mb-4"><img src=""#);
+        html.push_str(r#"<div class="my-4">"#);
+        html.push_str(r#"<img src=""#);
         html.push_str(&html_escape::encode_quoted_attribute(image_url));
-        html.push_str(r#"" alt="Generated image" class="rounded-lg max-w-md shadow-lg" /></div>"#);
-    }
-
-    // Render main text content
-    if !acc.text.is_empty() {
-        html.push_str(&markdown_to_html(&acc.text));
+        html.push_str(r#"" alt="Generated image" class="max-w-full h-auto rounded-lg shadow-md" />"#);
+        html.push_str("</div>");
     }
 
     // Render sources
@@ -322,6 +414,7 @@ pub enum ChatError {
     InvalidMessage,
     NetworkError(String),
     ServerError(String),
+    InternalError(String),
 }
 
 impl std::fmt::Display for ChatError {
@@ -335,6 +428,7 @@ impl std::fmt::Display for ChatError {
             ChatError::InvalidMessage => write!(f, "Invalid message format"),
             ChatError::NetworkError(msg) => write!(f, "Network error: {}", msg),
             ChatError::ServerError(msg) => write!(f, "Server error: {}", msg),
+            ChatError::InternalError(msg) => write!(f, "Internal error: {}", msg),
         }
     }
 }
@@ -364,6 +458,10 @@ impl IntoResponse for ChatError {
             ChatError::ServerError(msg) => {
                 tracing::error!("Server error: {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+            }
+            ChatError::InternalError(msg) => {
+                tracing::error!("Internal error: {}", msg);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal error")
             }
         };
 
@@ -711,7 +809,7 @@ pub async fn chat_generate(
     // Spawn a task that generates SSE events and sends them into the channel
     tokio::spawn(async move {
         // Call your existing function to start generating events
-        if let Err(e) = generate_sse_stream(&key, &model, chat_message_pairs, sender).await {
+        if let Err(e) = generate_sse_stream(&key, &model, chat_message_pairs, sender, Some(chat_id), Some(lat_message_id)).await {
             eprintln!("Error generating SSE stream: {:?}", e);
         }
     });
@@ -741,28 +839,21 @@ pub async fn chat_generate(
                     match event {
                         GenerationEvent::Text(text) => {
                             acc.text.push_str(&text);
-                            let html = render_message_html(&acc);
+                            // Render HTML without reasoning/thinking (those are handled separately)
+                            let html = render_message_text_only(&acc);
                             Some((Ok(Event::default().data(html)), (rc, acc)))
                         }
                         GenerationEvent::Thinking(thinking) => {
                             acc.thinking.push_str(&thinking);
-                            // Send thinking content update as JSON
-                            let thinking_content = html_escape::encode_text(&acc.thinking);
-                            let json_data = serde_json::json!({
-                                "type": "thinking_update",
-                                "content": thinking_content
-                            });
-                            Some((Ok(Event::default().data(json_data.to_string())), (rc, acc)))
+                            // Send thinking content as HTML
+                            let html = render_thinking_section(&acc.thinking);
+                            Some((Ok(Event::default().data(html)), (rc, acc)))
                         }
                         GenerationEvent::Reasoning(reasoning) => {
                             acc.reasoning.push_str(&reasoning);
-                            // Send reasoning content update as JSON
-                            let reasoning_content = html_escape::encode_text(&acc.reasoning);
-                            let json_data = serde_json::json!({
-                                "type": "reasoning_update",
-                                "content": reasoning_content
-                            });
-                            Some((Ok(Event::default().data(json_data.to_string())), (rc, acc)))
+                            // Send reasoning content as HTML
+                            let html = render_reasoning_section(&acc.reasoning);
+                            Some((Ok(Event::default().data(html)), (rc, acc)))
                         }
                         GenerationEvent::ThinkingUpdate(_) => {
                             // This shouldn't happen in the current implementation
@@ -793,6 +884,14 @@ pub async fn chat_generate(
                             acc.sources = sources;
                             let html = render_message_html(&acc);
                             Some((Ok(Event::default().data(html)), (rc, acc)))
+                        }
+                        GenerationEvent::ToolCallConfirmation(confirmation) => {
+                            // Send tool call confirmation request as JSON
+                            let json_data = serde_json::json!({
+                                "type": "tool_call_confirmation",
+                                "content": confirmation
+                            });
+                            Some((Ok(Event::default().data(json_data.to_string())), (rc, acc)))
                         }
                         GenerationEvent::End(_text) => {
                             // Save to database with extended data
@@ -996,4 +1095,141 @@ pub async fn delete_chat(
     let html = r#"<div class="hidden"></div>"#;
 
     Ok(Html(html.to_string()))
+}
+
+pub async fn confirm_tool_call(
+    Path((chat_id, confirmation_id)): Path<(i64, String)>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Html<String>, ChatError> {
+    // Update confirmation status in database
+    let confirmation_id_str = &confirmation_id as &str;
+    sqlx::query!(
+        "UPDATE tool_call_confirmations SET status = 'Approved' WHERE id = ?",
+        confirmation_id_str
+    )
+    .execute(&*state.pool)
+    .await
+    .map_err(|e| ChatError::DatabaseError(format!("Failed to update tool call confirmation: {}", e)))?;
+
+    // Get the tool call details
+    let confirmation_id_str2 = &confirmation_id as &str;
+    let row = sqlx::query!(
+        "SELECT tool_call, chat_id, message_pair_id FROM tool_call_confirmations WHERE id = ?",
+        confirmation_id_str2
+    )
+    .fetch_one(&*state.pool)
+    .await
+    .map_err(|e| ChatError::DatabaseError(format!("Failed to fetch tool call confirmation: {}", e)))?;
+
+    // Parse tool call
+    let tool_call: crate::data::model::ToolCall = serde_json::from_str(&row.tool_call)
+        .map_err(|e| ChatError::DatabaseError(format!("Failed to parse tool call: {}", e)))?;
+
+    // Execute the tool
+    let mcp_tool_call = crate::mcp::tools::parse_tool_call_from_ai(&tool_call)
+        .ok_or_else(|| ChatError::InternalError("Invalid MCP tool call".to_string()))?;
+
+    // Create a new message pair for the tool execution result
+    let message_pair_id = state.chat_repo.add_message_block(
+        chat_id,
+        &format!("Executing tool: {}", tool_call.function.name),
+    ).await
+    .map_err(|e| ChatError::DatabaseError(format!("Failed to add tool execution message: {}", e)))?;
+
+    // Update the confirmation with the new message pair ID
+    let confirmation_id_str3 = &confirmation_id as &str;
+    sqlx::query!(
+        "UPDATE tool_call_confirmations SET message_pair_id = ? WHERE id = ?",
+        message_pair_id,
+        confirmation_id_str3
+    )
+    .execute(&*state.pool)
+    .await
+    .map_err(|e| ChatError::DatabaseError(format!("Failed to update confirmation: {}", e)))?;
+
+    // Show processing message
+    let processing_html = r#"
+    <div class="alert alert-success">
+        <div class="flex items-center gap-3">
+            <div class="loading loading-spinner loading-sm"></div>
+            <div>
+                <h4 class="font-bold">Tool Call Approved</h4>
+                <p class="text-sm">Executing the tool call...</p>
+            </div>
+        </div>
+    </div>
+    "#;
+
+    // Spawn background task to execute the tool and update the message
+    let state_clone = state.clone();
+    tokio::spawn(async move {
+        if let Err(e) = execute_tool_and_update_message(state_clone, chat_id, message_pair_id, mcp_tool_call).await {
+            tracing::error!("Failed to execute tool: {}", e);
+        }
+    });
+
+    Ok(Html(processing_html.to_string()))
+}
+
+pub async fn reject_tool_call(
+    Path((chat_id, confirmation_id)): Path<(i64, String)>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Html<String>, ChatError> {
+    // Update confirmation status in database
+    let confirmation_id_str4 = &confirmation_id as &str;
+    sqlx::query!(
+        "UPDATE tool_call_confirmations SET status = 'Rejected', user_response = 'Rejected by user' WHERE id = ?",
+        confirmation_id_str4
+    )
+    .execute(&*state.pool)
+    .await
+    .map_err(|e| ChatError::DatabaseError(format!("Failed to update tool call confirmation: {}", e)))?;
+
+    let rejected_html = r#"
+    <div class="alert alert-error">
+        <div class="flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+                <h4 class="font-bold">Tool Call Rejected</h4>
+                <p class="text-sm">The tool call was cancelled by the user.</p>
+            </div>
+        </div>
+    </div>
+    "#;
+
+    Ok(Html(rejected_html.to_string()))
+}
+
+async fn execute_tool_and_update_message(
+    state: Arc<AppState>,
+    chat_id: i64,
+    message_pair_id: i64,
+    mcp_tool_call: crate::mcp::tools::McpToolCall,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Create a channel for the tool execution result
+    let (sender, mut receiver) = tokio::sync::mpsc::channel::<String>(10);
+
+    // We need to create a proper sender for execute_mcp_tool_streaming
+    // But since it expects GenerationEvent, let's execute the tool directly
+    let tool_result = crate::mcp::tools::execute_mcp_tool(&mcp_tool_call).await?;
+
+    // Convert the result to string
+    let result = serde_json::to_string_pretty(&tool_result)?;
+    let result_str = result.as_str();
+
+    // Update the message with the result
+    state.chat_repo.add_ai_message_to_pair(message_pair_id, result_str).await?;
+
+    // Update confirmation status
+    sqlx::query!(
+        "UPDATE tool_call_confirmations SET status = 'Executed', result = ? WHERE message_pair_id = ?",
+        result_str,
+        message_pair_id
+    )
+    .execute(&*state.pool)
+    .await?;
+
+    Ok(())
 }

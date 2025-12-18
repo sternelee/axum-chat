@@ -10,11 +10,11 @@ use crate::AppState;
 mod home;
 use home::app;
 mod chat;
-use chat::{chat, chat_add_message, chat_by_id, chat_generate, delete_chat, new_chat};
+use chat::{chat, chat_add_message, chat_by_id, chat_generate, delete_chat, new_chat, confirm_tool_call, reject_tool_call};
 mod auth;
 use auth::{form_signup, login, login_form, logout, signup};
 mod settings;
-use settings::{settings, settings_openai_api_key};
+use settings::{settings, settings_openai_api_key, mcp_settings, update_mcp_settings, delete_mcp_server, restart_mcp_server};
 mod error;
 use error::error;
 
@@ -26,11 +26,17 @@ pub fn app_router(state: Arc<AppState>) -> Router {
         .route("/{id}", get(chat_by_id).delete(delete_chat))
         .route("/{id}/message/add", post(chat_add_message))
         .route("/{id}/generate", get(chat_generate))
+        .route("/{id}/tool-confirm/{confirmation_id}", post(confirm_tool_call))
+        .route("/{id}/tool-reject/{confirmation_id}", post(reject_tool_call))
         .with_state(state.clone())
         .layer(axum::middleware::from_fn(auth));
 
     let settings_router = Router::new()
         .route("/", get(settings).post(settings_openai_api_key))
+        .route("/mcp", get(mcp_settings))
+        .route("/mcp/update", post(update_mcp_settings))
+        .route("/mcp/delete", post(delete_mcp_server))
+        .route("/mcp/restart", post(restart_mcp_server))
         .layer(axum::middleware::from_fn(auth));
 
     Router::new()

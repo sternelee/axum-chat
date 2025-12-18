@@ -18,6 +18,7 @@ mod ai;
 mod middleware;
 use middleware::extract_user;
 mod data;
+mod mcp;
 mod utils;
 use data::repository::ChatRepository;
 
@@ -63,6 +64,11 @@ async fn main() {
 
     let pool = Arc::new(pool);
 
+    // Store a reference to the pool in a global static for access from save_tool_call_confirmation
+    unsafe {
+        DB_POOL = Some(Arc::as_ptr(&pool) as *const sqlx::Pool<sqlx::Sqlite>);
+    }
+
     let chat_repo = ChatRepository { pool: pool.clone() };
 
     let static_files = ServeDir::new("assets");
@@ -75,6 +81,25 @@ async fn main() {
             ::std::process::exit(1);
         }
     };
+
+    // Initialize MCP manager
+    let mcp_manager = mcp::get_mcp_manager();
+    let mcp_config_path = std::path::PathBuf::from("mcp.json");
+
+    if let Err(e) = mcp_manager.load_config(&mcp_config_path).await {
+        println!("Warning: Could not load mcp.json: {}", e);
+        println!("Using default MCP configuration. Copy mcp.json.example to mcp.json to configure MCP servers.");
+    }
+
+    // Initialize enabled MCP servers
+    match mcp_manager.initialize_servers().await {
+        Ok(count) => {
+            println!("Successfully initialized {} MCP servers", count);
+        }
+        Err(e) => {
+            println!("Warning: Failed to initialize some MCP servers: {}", e);
+        }
+    }
 
     let state = AppState {
         pool,
@@ -109,7 +134,31 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+
+    // Set up graceful shutdown
+    let shutdown_signal = async move {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+
+        println!("Shutting down MCP servers...");
+        mcp_manager.shutdown_all().await;
+        println!("Shutdown complete.");
+    };
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal)
+        .await
+        .unwrap();
+}
+
+// Global function to access the database pool
+static mut DB_POOL: Option<*const sqlx::Pool<sqlx::Sqlite>> = None;
+
+pub fn get_db_pool() -> &'static sqlx::Pool<sqlx::Sqlite> {
+    unsafe {
+        DB_POOL.unwrap().as_ref().unwrap()
+    }
 }
 
 #[derive(Debug, sqlx::FromRow, Serialize, Clone)]

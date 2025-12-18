@@ -63,6 +63,40 @@ pub struct FunctionCall {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolInfo {
+    pub name: String,
+    pub description: String,
+    pub parameters: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolResult {
+    pub tool_call_id: String,
+    pub output: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolCallConfirmation {
+    pub id: String,
+    pub chat_id: i64,
+    pub message_pair_id: i64,
+    pub tool_call: ToolCall,
+    pub status: ToolCallStatus,
+    pub created_at: DateTime<Utc>,
+    pub user_response: Option<String>,
+    pub result: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum ToolCallStatus {
+    Pending,   // 等待用户确认
+    Approved,  // 用户已批准
+    Rejected,  // 用户已拒绝
+    Executed,  // 已执行
+    Failed,    // 执行失败
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UsageInfo {
     pub prompt_tokens: i64,
     pub completion_tokens: i64,
